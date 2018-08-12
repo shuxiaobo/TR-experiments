@@ -76,7 +76,7 @@ def init_from_scrach(args):
 
     model = NGramRNN(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
                      rnn_layers = 1,
-                     bidirection = False)
+                     bidirection = True)
 
     model.cuda()
     model.init_optimizer()

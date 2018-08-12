@@ -8,7 +8,7 @@ import sys
 import os
 
 sys.path.append(os.getcwd() + '/..')
-torch.cuda.set_device(0)
+torch.cuda.set_device(1)
 from cli.train import train
 from cli.preprocess import preprocess
 
@@ -87,6 +87,9 @@ def main():
     group3.add_argument("--num_words", default = 10000, type = int, help = "max length of the sentences")
 
     group3.add_argument("--skip_top", default = 20, type = int, help = "max length of the sentences")
+
+    # -----------------------------------------------------------------------------------------------------------
+    group4 = parser.add_argument_group("4.model specific parameters")
 
     args = parser.parse_args()
 

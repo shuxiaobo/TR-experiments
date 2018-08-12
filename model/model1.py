@@ -28,9 +28,11 @@ class NGramRNN(BaseModel):
 
         self.embedding = nn.Embedding(vocabulary_size, embedding_size)
         self.rnn1 = nn.LSTM(embedding_size, embedding_size, num_layers = rnn_layers, bias = False, bidirectional = bidirection, batch_first = True)
-        self.rnn2 = nn.LSTM(embedding_size * 4 if bidirection else embedding_size * 2, hidden_size, rnn_layers, bias = False, bidirectional = bidirection, batch_first = True)
+        self.rnn2 = nn.LSTM(embedding_size * 3 if bidirection else embedding_size * 2, hidden_size, rnn_layers, bias = False, bidirectional = bidirection,
+                            batch_first = True)
 
-        self.linear = nn.Linear(hidden_size, 2, bias = False)
+        # self.linear = nn.Linear(embedding_size * 2 if bidirection else embedding_size, 2, bias = False)
+        self.linear = nn.Linear(hidden_size * 2 if bidirection else hidden_size, 2, bias = False)
 
     def forward(self, x, y):
         x = LongTensor(x)
@@ -38,15 +40,16 @@ class NGramRNN(BaseModel):
         x_embed = self.embedding(x)
         length = x_embed.shape[1]
         # reduce
-        outputs, h, c = self.reduce_ngram(x_embed, mask)  # (seq_len, batch, hidden_size * num_directions)
+        outputs, h, reduced_mask = self.reduce_ngram(x_embed, mask)  # (seq_len, batch, hidden_size * num_directions)
 
         # expand
         expanded_out = self.expand(outputs, length)
 
         outputs, (h, c) = self.rnn2(torch.cat([expanded_out, x_embed], -1))
+        outputs = outputs * mask.unsqueeze(-1)
 
-        # output_maxpooled, _ = torch.max(outputs, 1)
-        output_maxpooled = h.transpose(0, 1).view(x.shape[0], -1)
+        output_maxpooled, _ = torch.max(outputs, 1)
+        # output_maxpooled = h.transpose(0, 1).contiguous().view(x.shape[0], -1)
         class_prob = F.softmax(self.linear(output_maxpooled))
         return class_prob
 
@@ -65,11 +68,14 @@ class NGramRNN(BaseModel):
         max_len = data.shape[1]
 
         reduced = []
+        reduced_mask = []
         for i in range(0, max_len, self.kernel_size):
             reduced.append(torch.sum(data[:, i:i + self.kernel_size, :], 1))
+            reduced_mask.append(torch.max(data[:, i:i + self.kernel_size, :], 1)[0])
         reduced = torch.stack(reduced, 1)
+        reduced_mask = torch.stack(reduced_mask, 1)
         outputs, (h, c) = self.rnn1(reduced)
-        return outputs, h, c
+        return outputs, h, reduced_mask
 
     def init_weight(self):
         nn.init.xavier_uniform_(self.rnn1.all_weights.data)
