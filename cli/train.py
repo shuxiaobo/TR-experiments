@@ -7,6 +7,8 @@ import torch
 import numpy as np
 from datasets.imdb import ImdbDataSet
 from model.model1 import NGramRNN
+from model.model2 import NGramRNN2
+from model.baseline import BaseLineRNN
 from utils.util import accuracy
 import logging
 
@@ -25,6 +27,7 @@ def train(args):
             out = model(*a_data)
             loss = model.loss(out, a_data[-1])
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clipping)
             model.optimizer.step()
 
             loss_sum += loss.item()
@@ -74,9 +77,9 @@ def init_from_scrach(args):
     test_dataloader = DataLoader(dataset = test_dataset, batch_size = args.batch_size, shuffle = True,
                                  collate_fn = ImdbDataSet.batchfy_fn, pin_memory = True, drop_last = False)
 
-    model = NGramRNN(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
+    model = BaseLineRNN(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
                      rnn_layers = 1,
-                     bidirection = True)
+                     bidirection = True, kernel_size = args.kernel_size, stride = args.stride)
 
     model.cuda()
     model.init_optimizer()

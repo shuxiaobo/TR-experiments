@@ -13,7 +13,7 @@ class BaseModel(nn.Module):
         super(BaseModel, self).__init__()
         self.args = args
         self.use_cuda = torch.cuda.is_available()
-        self.model_name = str(type(self))  # model name
+        self.model_name = self.__class__.__name__  # model name
 
     def init_weight(self):
         """
@@ -50,3 +50,6 @@ class BaseModel(nn.Module):
             name = prefix + self.model_name + '_' + str(name) + '.pth'
         torch.save(self.state_dict(), name)
         return name
+
+    def loss(self, out, label):
+        raise NotImplementedError("Please implement the loss method in your model class. See models.base_models.")

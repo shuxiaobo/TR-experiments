@@ -14,10 +14,10 @@ LongTensor = torch.cuda.LongTensor if USE_CUDA else torch.LongTensor
 ByteTensor = torch.cuda.ByteTensor if USE_CUDA else torch.ByteTensor
 
 
-class NGramRNN(BaseModel):
+class NGramRNN2(BaseModel):
 
     def __init__(self, args, hidden_size, embedding_size, vocabulary_size, rnn_layers = 1, bidirection = False, kernel_size = 3, stride = 1):
-        super(NGramRNN, self).__init__(args = args)
+        super(NGramRNN2, self).__init__(args = args)
         self.args = args
         self.hidden_size = hidden_size
         self.embedding_size = embedding_size
@@ -28,31 +28,34 @@ class NGramRNN(BaseModel):
 
         self.embedding = nn.Embedding(vocabulary_size, embedding_size)
         self.rnn1 = nn.LSTM(embedding_size, embedding_size, num_layers = rnn_layers, bias = False, bidirectional = bidirection, batch_first = True)
-        self.rnn2 = nn.LSTM(embedding_size * 3 if bidirection else embedding_size * 2, hidden_size, rnn_layers, bias = False, bidirectional = bidirection,
+        self.rnn2 = nn.LSTM(embedding_size, hidden_size, rnn_layers, bias = False, bidirectional = bidirection,
                             batch_first = True)
 
-        # self.linear = nn.Linear(embedding_size * 2 if bidirection else embedding_size, 2, bias = False)
-        self.linear = nn.Linear(hidden_size * 2 if bidirection else hidden_size, 2, bias = False)
-        self.dropout = nn.Dropout(p = self.args.keep_prob)
+        self.linear = nn.Linear(embedding_size * 2 if bidirection else embedding_size, 2, bias = False)
+        # self.linear = nn.Linear(hidden_size * 2 if bidirection else hidden_size, 2, bias = False)
+
+        self.param = nn.Parameter(torch.randn(self.kernel_size, embedding_size))
 
     def forward(self, x, y):
         x = LongTensor(x)
         mask = torch.where(x > 0, torch.ones_like(x, dtype = torch.float32), torch.zeros_like(x, dtype = torch.float32))
         x_embed = self.embedding(x)
-        x_embed = self.dropout(x_embed)
-        length = x_embed.shape[1]
+
         # reduce
         outputs, h, reduced_mask = self.reduce_ngram(x_embed, mask)  # (seq_len, batch, hidden_size * num_directions)
 
         # expand
-        expanded_out = self.expand(outputs, length)
-
-        outputs, (h, c) = self.rnn2(torch.cat([expanded_out, x_embed], -1))
-        outputs = outputs * mask.unsqueeze(-1)
-
-        output_maxpooled, _ = torch.max(outputs, 1)
+        # length = x_embed.shape[1]
+        # expanded_out = self.expand(outputs, length)
+        #
+        # outputs, (h, c) = self.rnn2(x_embed)
+        # output_maxpooled = self.gather_rnnstate(outputs, mask)
+        # outputs = outputs * mask.unsqueeze(-1)
+        #
+        # output_maxpooled, _ = torch.max(outputs, 1)
         # output_maxpooled = h.transpose(0, 1).contiguous().view(x.shape[0], -1)
-        class_prob = F.log_softmax(self.linear(output_maxpooled))
+        output_maxpooled = self.gather_rnnstate(outputs, reduced_mask)
+        class_prob = F.softmax(self.linear(output_maxpooled))
         return class_prob
 
     def gather_rnnstate(self, data, mask):
@@ -62,8 +65,9 @@ class NGramRNN(BaseModel):
         :param mask:
         :return:
         """
-        real_len = torch.sum(mask, -1)
-        return torch.gather(data, 1, LongTensor(real_len).view(-1, 1).unsqueeze(2).repeat(1, 1, data.shape[-1]))
+        real_len_index = torch.sum(mask, -1) - 1
+        assert torch.max(real_len_index)[0].item() + 1 == data.shape[1]
+        return torch.gather(data, 1, real_len_index.long().view(-1, 1).unsqueeze(2).repeat(1, 1, data.shape[-1])).squeeze()
 
     def expand(self, data, length):
         result = []
@@ -72,7 +76,6 @@ class NGramRNN(BaseModel):
             result.append(data[:, i].unsqueeze(1).repeat(1, self.kernel_size, 1))
         result.append(data[:, -1].unsqueeze(1).repeat(1, length - max_len * self.kernel_size + self.kernel_size, 1))
         result = torch.cat(result, 1)
-        assert length == result.shape[1]
         return result
 
     def reduce_ngram(self, data, mask):
@@ -82,8 +85,8 @@ class NGramRNN(BaseModel):
         reduced = []
         reduced_mask = []
         for i in range(0, max_len, self.kernel_size):
-            reduced.append(torch.sum(data[:, i:i + self.kernel_size, :], 1))
-            reduced_mask.append(torch.max(data[:, i:i + self.kernel_size, :], 1)[0])
+            reduced.append(torch.sum(torch.mul(data[:, i:i + self.kernel_size, :], self.param), 1))
+            reduced_mask.append(torch.max(mask[:, i:i + self.kernel_size], 1)[0])
         reduced = torch.stack(reduced, 1)
         reduced_mask = torch.stack(reduced_mask, 1)
         outputs, (h, c) = self.rnn1(reduced)

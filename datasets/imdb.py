@@ -42,6 +42,8 @@ class ImdbDataSet(Dataset):
         x = [d[0] for d in data]
         y = [d[1] for d in data]
         max_len = max(map(len, x))
+        # if max_len % 5 != 0:
+        #     max_len += 5 - (max_len % 5)
         return sequence.pad_sequences(x, maxlen = max_len, padding = 'post'), y
 
     def load_data(self, path = 'imdb.npz',

@@ -8,7 +8,7 @@ import sys
 import os
 
 sys.path.append(os.getcwd() + '/..')
-torch.cuda.set_device(1)
+torch.cuda.set_device(0)
 from cli.train import train
 from cli.preprocess import preprocess
 
@@ -90,6 +90,10 @@ def main():
 
     # -----------------------------------------------------------------------------------------------------------
     group4 = parser.add_argument_group("4.model specific parameters")
+
+    group4.add_argument('--kernel_size', default = 5, type = int, help = 'kernel size for n-gram.')
+
+    group4.add_argument('--stride', default = 1, type = int, help = 'stride size for n-gram.')
 
     args = parser.parse_args()
 

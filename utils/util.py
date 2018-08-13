@@ -9,6 +9,7 @@ import logging
 from tensorflow.python.platform import gfile
 import codecs
 import numpy as np
+import torch
 
 logging.basicConfig(level = logging.DEBUG, format = '%(asctime)s %(filename)s[line:%(lineno)d]： %(message)s', datefmt = '%Y-%m-%d %I:%M:%S')
 
@@ -44,3 +45,15 @@ def gen_embeddings(word_dict, embed_dim, in_file = None, init = np.random.unifor
 
 def accuracy(out, label):
     return np.sum(np.equal(np.argmax(out, axis = -1), label))
+
+
+def gather_rnnstate(data, mask):
+    """
+    return the last state valid
+    :param data:
+    :param mask:
+    :return:
+    """
+    real_len_index = torch.sum(mask, -1) - 1
+    # assert torch.max(real_len_index)[0].item() + 1 == data.shape[1]
+    return torch.gather(data, 1, real_len_index.long().view(-1, 1).unsqueeze(2).repeat(1, 1, data.shape[-1])).squeeze()
