@@ -11,12 +11,15 @@ from model.model2 import NGramRNN2
 from model.baseline import BaseLineRNN
 from utils.util import accuracy
 import logging
+from datasets.binary import *
 
 logging.basicConfig(level = logging.DEBUG, format = '%(asctime)s %(filename)s[line:%(lineno)d]： %(message)s', datefmt = '%Y-%m-%d %I:%M:%S')
 
 
 def train(args):
     train_dataloader, test_dataloader, model = init_from_scrach(args)
+    best_acc = 0.0
+    best_epoch = 0
     for i in range(args.num_epoches):
         loss_sum = 0
         acc_sum = 0.0
@@ -40,7 +43,10 @@ def train(args):
                                  loss_sum * 1.0 / j, acc_sum / samples_num))
 
         logging.info("Testing......")
-        logging.error('Test result acc1: %.4f' % test(args, model, test_dataloader))
+        testacc = test(args, model, test_dataloader)
+        best_epoch = best_epoch if best_acc > testacc else i
+        best_acc = best_acc if best_acc > testacc else testacc
+        logging.error('Test result acc1: %.4f | best acc: %.4f | best epoch : %d' % (testacc, best_acc, best_epoch))
 
 
 def evaluation(args, model, data_loader):
@@ -69,21 +75,30 @@ def init_from_scrach(args):
     logging.info('No trained model provided. init model from scratch...')
 
     logging.info('Load the train dataset...')
-    train_dataset = ImdbDataSet(args, num_words = args.num_words, skip_top = args.skip_top)
-    train_dataloader = DataLoader(dataset = train_dataset, batch_size = args.batch_size, shuffle = True,
+
+    train_dataset = CR(args)
+    test_dataset = CR(args, is_train = False)
+    # train_dataset = MR(args)
+    # test_dataset = MR(args, is_train = False)
+    train_dataset = MPQA(args)
+    test_dataset = MPQA(args, is_train = False)
+    # train_dataset = SUBJ(args)
+    # test_dataset = SUBJ(args, is_train = False)
+    # train_dataset = ImdbDataSet(args, num_words = args.num_words, skip_top = args.skip_top)
+    # test_dataset = ImdbDataSet(args, train = False, num_words = args.num_words, skip_top = args.skip_top)
+
+    train_dataloader = DataLoader(dataset = train_dataset, batch_size = args.batch_size, shuffle = False,
                                   collate_fn = ImdbDataSet.batchfy_fn, pin_memory = True, drop_last = False)
     logging.info('Load the test dataset...')
-    test_dataset = ImdbDataSet(args, train = False, num_words = args.num_words, skip_top = args.skip_top)
-    test_dataloader = DataLoader(dataset = test_dataset, batch_size = args.batch_size, shuffle = True,
+    test_dataloader = DataLoader(dataset = test_dataset, batch_size = args.batch_size, shuffle = False,
                                  collate_fn = ImdbDataSet.batchfy_fn, pin_memory = True, drop_last = False)
-
-    model = BaseLineRNN(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
+    logging.info('Initiating the model...')
+    model = NGramRNN2(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
                      rnn_layers = 1,
-                     bidirection = True, kernel_size = args.kernel_size, stride = args.stride)
-
+                     bidirection = args.bidirectional, kernel_size = args.kernel_size, stride = args.stride)
     model.cuda()
     model.init_optimizer()
-
+    logging.info('Model {} initiate over...'.format(model.__class__.__name__))
     return train_dataloader, test_dataloader, model
 
 #

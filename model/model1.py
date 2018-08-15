@@ -45,14 +45,14 @@ class NGramRNN(BaseModel):
         outputs, h, reduced_mask = self.reduce_ngram(x_embed, mask)  # (seq_len, batch, hidden_size * num_directions)
 
         # expand
-        expanded_out = self.expand(outputs, length)
+        expanded_out = self.dropout(self.expand(outputs, length))
 
         outputs, (h, c) = self.rnn2(torch.cat([expanded_out, x_embed], -1))
         outputs = outputs * mask.unsqueeze(-1)
 
         output_maxpooled, _ = torch.max(outputs, 1)
         # output_maxpooled = h.transpose(0, 1).contiguous().view(x.shape[0], -1)
-        class_prob = F.log_softmax(self.linear(output_maxpooled))
+        class_prob = self.linear(self.dropout(output_maxpooled))
         return class_prob
 
     def gather_rnnstate(self, data, mask):
@@ -83,7 +83,7 @@ class NGramRNN(BaseModel):
         reduced_mask = []
         for i in range(0, max_len, self.kernel_size):
             reduced.append(torch.sum(data[:, i:i + self.kernel_size, :], 1))
-            reduced_mask.append(torch.max(data[:, i:i + self.kernel_size, :], 1)[0])
+            reduced_mask.append(torch.max(mask[:, i:i + self.kernel_size], 1)[0])
         reduced = torch.stack(reduced, 1)
         reduced_mask = torch.stack(reduced_mask, 1)
         outputs, (h, c) = self.rnn1(reduced)

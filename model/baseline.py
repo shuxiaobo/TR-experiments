@@ -30,16 +30,20 @@ class BaseLineRNN(BaseModel):
         self.rnn = nn.LSTM(embedding_size, hidden_size, num_layers = rnn_layers, bias = False, bidirectional = bidirection, batch_first = True)
 
         self.linear = nn.Linear(hidden_size * 2 if bidirection else hidden_size, 2, bias = False)
+        self.dropout = nn.Dropout(p = self.args.keep_prob)
 
     def forward(self, x, y):
         x = LongTensor(x)
         mask = torch.where(x > 0, torch.ones_like(x, dtype = torch.float32), torch.zeros_like(x, dtype = torch.float32))
-        x_embed = self.embedding(x) * mask.unsqueeze(-1)  # here can not use the mask while using the last hidden state.
+        # x_embed = self.embedding(x) * mask.unsqueeze(-1)  # here can not use the mask while using the last hidden state.
+        x_embed = self.embedding(x)  # here can not use the mask while using the last hidden state.
+        x_embed = self.dropout(x_embed)
         outputs, (h, c) = self.rnn(x_embed)
         batch_size = x.shape[0]
         h = h.transpose(0, 1).contiguous().view(batch_size, -1)
         outputs = gather_rnnstate(data = outputs, mask = mask)
-        class_prob = F.log_softmax(self.linear(h))
+        class_prob = self.linear(outputs)
+        # class_prob = F.log_softmax(self.linear(h))
         return class_prob
 
     def init_weight(self):

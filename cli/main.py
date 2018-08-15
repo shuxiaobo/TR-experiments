@@ -8,7 +8,7 @@ import sys
 import os
 
 sys.path.append(os.getcwd() + '/..')
-torch.cuda.set_device(0)
+torch.cuda.set_device(1)
 from cli.train import train
 from cli.preprocess import preprocess
 
@@ -51,17 +51,13 @@ def main():
 
     group2.add_argument("--tmp_dir", default = "../data/processed/", help = "dataset specific tmp folder")
 
-    group2.add_argument("--train_file", default = "train.filter.txt", help = "train file path under data root")
+    group2.add_argument("--train_file", default = "train.txt", help = "train file path under data root")
 
-    group2.add_argument("--valid_file", default = "dev.filter.txt", help = "validation file path under data root")
+    group2.add_argument("--valid_file", default = "dev.txt", help = "validation file path under data root")
 
-    group2.add_argument("--test_file", default = "test.filter.txt", help = "test file path under data root")
+    group2.add_argument("--test_file", default = "test.txt", help = "test file path under data root")
 
     group2.add_argument("--max_count", default = None, type = int, help = "read n lines of data file, if None, read all data")
-
-    group2.add_argument("--entity_file", default = "entity2id.txt", type = str, help = "entity file under data root")
-
-    group2.add_argument("--relation_file", default = "relation2id.txt", type = str, help = "relation file under data root")
 
     group2.add_argument("--word_file", default = "word2id.txt", type = str, help = "word file under data root")
 
@@ -70,9 +66,9 @@ def main():
 
     group3.add_argument("--batch_size", default = 64, type = int, help = "batch size for train")
 
-    group3.add_argument("--lr", default = 1e-3, type = float, help = "lr for model learning")
+    group3.add_argument("--lr", default = 3e-3, type = float, help = "lr for model learning")
 
-    group3.add_argument("--keep_prob", default = 0.5, type = float, help = "the keep prob")
+    group3.add_argument("--keep_prob", default = 0.6, type = float, help = "the keep prob")
 
     group3.add_argument("--optimizer", default = "ADAM", choices = ["SGD", "ADAM", "ADAD"], help = "optimize algorithms, SGD or Adam")
 
@@ -82,7 +78,7 @@ def main():
 
     group3.add_argument("--grad_clipping", default = 10, type = int, help = "the threshold value of gradient clip")
 
-    group3.add_argument("--num_epoches", default = 10, type = int, help = "max epoch iterations")
+    group3.add_argument("--num_epoches", default = 100, type = int, help = "max epoch iterations")
 
     group3.add_argument("--num_words", default = 10000, type = int, help = "max length of the sentences")
 
@@ -95,13 +91,15 @@ def main():
 
     group4.add_argument('--stride', default = 1, type = int, help = 'stride size for n-gram.')
 
+    group4.add_argument('--bidirectional', default = True, type = bool, help = 'Use the bi-directional rnn.')
+
     args = parser.parse_args()
 
     print(args)
     if args.mode == 1:
         train(args)
     elif args.mode == 0:
-        preprocess(args.data_root + args.train_file, args.tmp_dir)
+        preprocess(args)
     else:
         raise ValueError("no value of mode arg being : {}".format(str(args.mode)))
 

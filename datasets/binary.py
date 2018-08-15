@@ -1,0 +1,103 @@
+'''
+Binary classifier and corresponding datasets : MR, CR, SUBJ, MPQA
+'''
+from __future__ import absolute_import, division, unicode_literals
+
+import io
+import os
+import logging
+from torch.utils.data import Dataset
+from utils.util import prepare_dictionary, logger, prepare_split, write_file
+from tensorflow.contrib.keras.api.keras.preprocessing import sequence
+
+
+class BinaryClassifierEval(Dataset):
+    def __init__(self, args, is_train = True, seed = 1111):
+        self.seed = seed
+        self.args = args
+        file_name = self.args.train_file if is_train else self.args.test_file
+        self.data_x, self.data_y = self.load_file(os.path.join(self.args.tmp_dir, self.__class__.__name__, file_name))
+
+        sorted_corpus = sorted(zip(self.data_x, self.data_y),
+                               key = lambda z: (len(z[0]), z[1]))
+        self.data_x = [x for (x, y) in sorted_corpus]
+        self.data_y = [y for (x, y) in sorted_corpus]
+
+        self.n_samples = len(self.data_x)
+        self.word_file = os.path.join(args.tmp_dir, self.__class__.__name__, args.word_file)
+        if os.path.isfile(self.word_file) and os.path.getsize(self.word_file) > 0:
+            self.word2id = self.get_word_index(self.word_file)
+        else:
+            self.word2id = self.prepare_dict()
+
+    def load_file(self, fpath):
+        with io.open(fpath, 'r', encoding = 'utf-8') as f:
+            data_x = list()
+            data_y = list()
+            for line in f.read().splitlines():
+                line = line.strip().split(' ')
+                if len(line) <= 1:
+                    continue
+                data_x.append(line[:-1])
+                data_y.append(int(line[-1]))
+        return data_x, data_y
+
+    def prepare_dict(self):
+        logger("Prepare the dictionary for the {}...".format(self.__class__.__name__))
+        word2id = prepare_dictionary(data = self.data_x, dict_path = os.path.join(self.args.tmp_dir, self.__class__.__name__, self.args.word_file))
+        logger("Word2id size : %d" % len(word2id))
+        return word2id
+
+    def get_word_index(self, path = None):
+        if not path:
+            path = self.args.tmp_dir + self.__class__.__name__ + self.args.word_file
+        word2id = dict()
+        with open(path, mode = 'r', encoding = 'utf-8') as f:
+            for l in f:
+                word2id.setdefault(l.strip(), len(word2id))
+        return word2id
+
+    def __getitem__(self, index):
+        result = [self.word2id[d] if self.word2id.get(d) else self.word2id['_<UNKNOW>'] for d in self.data_x[index]]
+        return result, self.data_y[index]
+
+    def __len__(self):
+        return self.n_samples
+
+    def data_split(self, args):
+        trainx, trainy, testx, testy = prepare_split(self.train_data_x, self.train_data_y, validation_split = 0.2)
+        train = [x + [str(y)] for x, y in zip(trainx, trainy)]
+        test = [x + [str(y)] for x, y in zip(testx, testy)]
+        write_file(data = train, path = os.path.join(args.tmp_dir, self.__class__.__name__, args.train_file))
+        write_file(data = test, path = os.path.join(args.tmp_dir, self.__class__.__name__, args.test_file))
+
+    @staticmethod
+    def batchfy_fn(data):
+        x = [d[0] for d in data]
+        y = [d[1] for d in data]
+        max_len = max(map(len, x))
+        return sequence.pad_sequences(x, maxlen = max_len, padding = 'post'), y
+
+
+class CR(BinaryClassifierEval):
+    def __init__(self, args, is_train = True, seed = 1111):
+        logging.debug('***** Transfer task : CR *****\n\n')
+        super(self.__class__, self).__init__(args, is_train, seed)
+
+
+class MR(BinaryClassifierEval):
+    def __init__(self, args, is_train = True, seed = 1111):
+        logging.debug('***** Transfer task : MR *****\n\n')
+        super(self.__class__, self).__init__(args, is_train, seed)
+
+
+class SUBJ(BinaryClassifierEval):
+    def __init__(self, args, is_train = True, seed = 1111):
+        logging.debug('***** Transfer task : SUBJ *****\n\n')
+        super(self.__class__, self).__init__(args, is_train, seed)
+
+
+class MPQA(BinaryClassifierEval):
+    def __init__(self, args, is_train = True, seed = 1111):
+        logging.debug('***** Transfer task : MPQA *****\n\n')
+        super(self.__class__, self).__init__(args, is_train, seed)
