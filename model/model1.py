@@ -16,7 +16,7 @@ ByteTensor = torch.cuda.ByteTensor if USE_CUDA else torch.ByteTensor
 
 class NGramRNN(BaseModel):
 
-    def __init__(self, args, hidden_size, embedding_size, vocabulary_size, rnn_layers = 1, bidirection = False, kernel_size = 3, stride = 1):
+    def __init__(self, args, hidden_size, embedding_size, vocabulary_size, rnn_layers = 1, bidirection = False, kernel_size = 3, stride = 1, num_class = 2):
         super(NGramRNN, self).__init__(args = args)
         self.args = args
         self.hidden_size = hidden_size
@@ -32,7 +32,7 @@ class NGramRNN(BaseModel):
                             batch_first = True)
 
         # self.linear = nn.Linear(embedding_size * 2 if bidirection else embedding_size, 2, bias = False)
-        self.linear = nn.Linear(hidden_size * 2 if bidirection else hidden_size, 2, bias = False)
+        self.linear = nn.Linear(hidden_size * 2 if bidirection else hidden_size, num_class, bias = False)
         self.dropout = nn.Dropout(p = self.args.keep_prob)
 
     def forward(self, x, y):
@@ -45,14 +45,14 @@ class NGramRNN(BaseModel):
         outputs, h, reduced_mask = self.reduce_ngram(x_embed, mask)  # (seq_len, batch, hidden_size * num_directions)
 
         # expand
-        expanded_out = self.dropout(self.expand(outputs, length))
+        expanded_out = self.expand(outputs, length)
 
         outputs, (h, c) = self.rnn2(torch.cat([expanded_out, x_embed], -1))
         outputs = outputs * mask.unsqueeze(-1)
 
         output_maxpooled, _ = torch.max(outputs, 1)
         # output_maxpooled = h.transpose(0, 1).contiguous().view(x.shape[0], -1)
-        class_prob = self.linear(self.dropout(output_maxpooled))
+        class_prob = self.linear(output_maxpooled)
         return class_prob
 
     def gather_rnnstate(self, data, mask):
@@ -69,8 +69,8 @@ class NGramRNN(BaseModel):
         result = []
         max_len = data.shape[1]
         for i in range(0, max_len - 1):
-            result.append(data[:, i].unsqueeze(1).repeat(1, self.kernel_size, 1))
-        result.append(data[:, -1].unsqueeze(1).repeat(1, length - max_len * self.kernel_size + self.kernel_size, 1))
+            result.append(data[:, i].unsqueeze(1).repeat(1, self.stride, 1))
+        result.append(data[:, -1].unsqueeze(1).repeat(1, length - max_len * self.stride + self.stride, 1))
         result = torch.cat(result, 1)
         assert length == result.shape[1]
         return result
@@ -81,7 +81,7 @@ class NGramRNN(BaseModel):
 
         reduced = []
         reduced_mask = []
-        for i in range(0, max_len, self.kernel_size):
+        for i in range(0, max_len, self.stride):
             reduced.append(torch.sum(data[:, i:i + self.kernel_size, :], 1))
             reduced_mask.append(torch.max(mask[:, i:i + self.kernel_size], 1)[0])
         reduced = torch.stack(reduced, 1)

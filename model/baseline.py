@@ -16,7 +16,7 @@ ByteTensor = torch.cuda.ByteTensor if USE_CUDA else torch.ByteTensor
 
 class BaseLineRNN(BaseModel):
 
-    def __init__(self, args, hidden_size, embedding_size, vocabulary_size, rnn_layers = 1, bidirection = False, kernel_size = 3, stride = 1):
+    def __init__(self, args, hidden_size, embedding_size, vocabulary_size, rnn_layers = 1, bidirection = False, kernel_size = 3, stride = 1, num_class = 2):
         super(BaseLineRNN, self).__init__(args = args)
         self.args = args
         self.hidden_size = hidden_size
@@ -29,7 +29,7 @@ class BaseLineRNN(BaseModel):
         self.embedding = nn.Embedding(vocabulary_size, embedding_size)
         self.rnn = nn.LSTM(embedding_size, hidden_size, num_layers = rnn_layers, bias = False, bidirectional = bidirection, batch_first = True)
 
-        self.linear = nn.Linear(hidden_size * 2 if bidirection else hidden_size, 2, bias = False)
+        self.linear = nn.Linear(hidden_size * 2 if bidirection else hidden_size, num_class, bias = False)
         self.dropout = nn.Dropout(p = self.args.keep_prob)
 
     def forward(self, x, y):
@@ -43,7 +43,6 @@ class BaseLineRNN(BaseModel):
         h = h.transpose(0, 1).contiguous().view(batch_size, -1)
         outputs = gather_rnnstate(data = outputs, mask = mask)
         class_prob = self.linear(outputs)
-        # class_prob = F.log_softmax(self.linear(h))
         return class_prob
 
     def init_weight(self):

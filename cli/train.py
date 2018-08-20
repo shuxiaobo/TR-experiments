@@ -42,7 +42,7 @@ def train(args):
                              (i, j, len(train_dataloader)) + 'loss sum = %.2f | accuracy : %.4f' % (
                                  loss_sum * 1.0 / j, acc_sum / samples_num))
 
-        logging.info("Testing......")
+        logging.info("Testing...... | Model : {0} | Task : {1}".format(model.__class__.__name__, train_dataloader.dataset.__class__.__name__))
         testacc = test(args, model, test_dataloader)
         best_epoch = best_epoch if best_acc > testacc else i
         best_acc = best_acc if best_acc > testacc else testacc
@@ -76,26 +76,34 @@ def init_from_scrach(args):
 
     logging.info('Load the train dataset...')
 
-    train_dataset = CR(args)
-    test_dataset = CR(args, is_train = False)
+    # train_dataset = CR(args)
+    # test_dataset = CR(args, is_train = False)
     # train_dataset = MR(args)
     # test_dataset = MR(args, is_train = False)
-    train_dataset = MPQA(args)
-    test_dataset = MPQA(args, is_train = False)
+    train_dataset = SST(args, nclasses = 2)
+    test_dataset = SST(args, is_train = False, nclasses = 2)
+    # train_dataset = MPQA(args)
+    # test_dataset = MPQA(args, is_train = False)
     # train_dataset = SUBJ(args)
     # test_dataset = SUBJ(args, is_train = False)
+    # train_dataset = TREC(args)
+    # test_dataset = TREC(args, is_train = False)
     # train_dataset = ImdbDataSet(args, num_words = args.num_words, skip_top = args.skip_top)
     # test_dataset = ImdbDataSet(args, train = False, num_words = args.num_words, skip_top = args.skip_top)
 
     train_dataloader = DataLoader(dataset = train_dataset, batch_size = args.batch_size, shuffle = False,
                                   collate_fn = ImdbDataSet.batchfy_fn, pin_memory = True, drop_last = False)
+    logging.info('Train data max length : %d' % train_dataset.max_len)
+
     logging.info('Load the test dataset...')
     test_dataloader = DataLoader(dataset = test_dataset, batch_size = args.batch_size, shuffle = False,
                                  collate_fn = ImdbDataSet.batchfy_fn, pin_memory = True, drop_last = False)
+    logging.info('Test data max length : %d' % test_dataset.max_len)
+
     logging.info('Initiating the model...')
-    model = NGramRNN2(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
+    model = NGramRNN(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
                      rnn_layers = 1,
-                     bidirection = args.bidirectional, kernel_size = args.kernel_size, stride = args.stride)
+                     bidirection = args.bidirectional, kernel_size = args.kernel_size, stride = args.stride, num_class = train_dataset.num_class)
     model.cuda()
     model.init_optimizer()
     logging.info('Model {} initiate over...'.format(model.__class__.__name__))

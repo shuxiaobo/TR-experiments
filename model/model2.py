@@ -16,7 +16,7 @@ ByteTensor = torch.cuda.ByteTensor if USE_CUDA else torch.ByteTensor
 
 class NGramRNN2(BaseModel):
 
-    def __init__(self, args, hidden_size, embedding_size, vocabulary_size, rnn_layers = 1, bidirection = False, kernel_size = 3, stride = 1):
+    def __init__(self, args, hidden_size, embedding_size, vocabulary_size, rnn_layers = 1, bidirection = False, kernel_size = 3, stride = 1, num_class = 2):
         super(NGramRNN2, self).__init__(args = args)
         self.args = args
         self.hidden_size = hidden_size
@@ -28,7 +28,7 @@ class NGramRNN2(BaseModel):
 
         self.embedding = nn.Embedding(vocabulary_size, embedding_size)
         self.rnn1 = nn.LSTM(embedding_size, embedding_size, num_layers = rnn_layers, bias = False, bidirectional = bidirection, batch_first = True)
-        self.linear = nn.Linear(embedding_size * 2 if bidirection else embedding_size, 2, bias = False)
+        self.linear = nn.Linear(embedding_size * 2 if bidirection else embedding_size, num_class, bias = False)
         # self.linear = nn.Linear(hidden_size * 2 if bidirection else hidden_size, 2, bias = False)
         self.dropout = nn.Dropout(p = self.args.keep_prob)
         # self.param = nn.Parameter(torch.randn(self.kernel_size, embedding_size))
@@ -40,7 +40,8 @@ class NGramRNN2(BaseModel):
         x_embed = self.dropout(x_embed)
         # reduce
         outputs, h, reduced_mask = self.reduce_ngram(x_embed, mask)  # (seq_len, batch, hidden_size * num_directions)
-        output_maxpooled = self.gather_rnnstate(outputs, reduced_mask)
+        # output_maxpooled = self.gather_rnnstate(outputs, reduced_mask)
+        output_maxpooled, _ = torch.max(outputs, 1)
         class_prob = self.linear(output_maxpooled)
         return class_prob
 
@@ -70,7 +71,7 @@ class NGramRNN2(BaseModel):
 
         reduced = []
         reduced_mask = []
-        for i in range(0, max_len, self.kernel_size):
+        for i in range(0, max_len, self.stride):
             reduced.append(torch.sum(data[:, i:i + self.kernel_size, :], 1))
             reduced_mask.append(torch.max(mask[:, i:i + self.kernel_size], 1)[0])
         reduced = torch.stack(reduced, 1)

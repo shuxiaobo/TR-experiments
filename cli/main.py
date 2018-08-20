@@ -8,7 +8,7 @@ import sys
 import os
 
 sys.path.append(os.getcwd() + '/..')
-torch.cuda.set_device(1)
+torch.cuda.set_device(0)
 from cli.train import train
 from cli.preprocess import preprocess
 
@@ -68,13 +68,13 @@ def main():
 
     group3.add_argument("--lr", default = 3e-3, type = float, help = "lr for model learning")
 
-    group3.add_argument("--keep_prob", default = 0.6, type = float, help = "the keep prob")
+    group3.add_argument("--keep_prob", default = 0.5, type = float, help = "the keep prob")
 
     group3.add_argument("--optimizer", default = "ADAM", choices = ["SGD", "ADAM", "ADAD"], help = "optimize algorithms, SGD or Adam")
 
-    group3.add_argument("--hidden_size", default = 128, type = int, help = "RNN hidden size")
+    group3.add_argument("--hidden_size", default = 30, type = int, help = "RNN hidden size")
 
-    group3.add_argument("--embedding_dim", default = 100, type = int, help = "dimension of word embeddings")
+    group3.add_argument("--embedding_dim", default = 30, type = int, help = "dimension of word embeddings")
 
     group3.add_argument("--grad_clipping", default = 10, type = int, help = "the threshold value of gradient clip")
 
@@ -87,9 +87,9 @@ def main():
     # -----------------------------------------------------------------------------------------------------------
     group4 = parser.add_argument_group("4.model specific parameters")
 
-    group4.add_argument('--kernel_size', default = 5, type = int, help = 'kernel size for n-gram.')
+    group4.add_argument('--kernel_size', default = 3, type = int, help = 'kernel size for n-gram.')
 
-    group4.add_argument('--stride', default = 1, type = int, help = 'stride size for n-gram.')
+    group4.add_argument('--stride', default = 3, type = int, help = 'stride size for n-gram.')
 
     group4.add_argument('--bidirectional', default = True, type = bool, help = 'Use the bi-directional rnn.')
 

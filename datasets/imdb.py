@@ -28,6 +28,12 @@ class ImdbDataSet(Dataset):
             oov_char = oov_char, index_from = index_from)
         self.data_x = train_data_x if train else test_data_x
         self.data_y = train_data_y if train else test_data_y
+
+        # sorted_corpus = sorted(zip(self.data_x, self.data_y),
+        #                        key = lambda z: (len(z[0]), z[1]))
+        # self.data_x = [x for (x, y) in sorted_corpus]
+        # self.data_y = [y for (x, y) in sorted_corpus]
+
         self.data_size = len(self.data_x)  # set by the sum-class
         self.word2id = self.get_word_index(os.getcwd() + '/' + self.args.tmp_dir + self.__class__.__name__ + '/imdb_word_index.json')
 
