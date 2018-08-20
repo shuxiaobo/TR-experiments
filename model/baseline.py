@@ -43,7 +43,7 @@ class BaseLineRNN(BaseModel):
         h = h.transpose(0, 1).contiguous().view(batch_size, -1)
         outputs = gather_rnnstate(data = outputs, mask = mask)
         class_prob = self.linear(outputs)
-        return class_prob
+        return class_prob, outputs
 
     def init_weight(self):
         nn.init.xavier_uniform_(self.rnn.all_weights.data)

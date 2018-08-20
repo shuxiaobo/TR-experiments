@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Created by ShaneSue on 2018/8/1
+# Created by ShaneSue on 2018/8/20
 from __future__ import absolute_import
 from torch.utils.data import DataLoader
 import torch
@@ -14,12 +14,13 @@ from utils.util import accuracy
 import logging
 from datasets.binary import *
 from datasets.snli import SNLI
+from model.layers import ClassifyNet
 
 logging.basicConfig(level = logging.DEBUG, format = '%(asctime)s %(filename)s[line:%(lineno)d]： %(message)s', datefmt = '%Y-%m-%d %I:%M:%S')
 
 
 def train(args):
-    train_dataloader, test_dataloader, model = init_from_scrach(args)
+    train_dataloader, test_dataloader, model, model2 = init_from_scrach(args)
     best_acc = 0.0
     best_epoch = 0
     for i in range(args.num_epoches):
@@ -29,8 +30,10 @@ def train(args):
         for j, a_data in enumerate(train_dataloader):
             model.optimizer.zero_grad()
 
-            out, feature = model(*a_data)
-            loss = model.loss(out, a_data[-1])
+            _, feature = model(a_data[0], a_data[-1])
+            _, feature2 = model(a_data[1], a_data[-1])
+            out = model2(feature, feature2)
+            loss = model2.loss(out, a_data[-1])
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clipping)
             model.optimizer.step()
@@ -45,32 +48,33 @@ def train(args):
                                  loss_sum * 1.0 / j, acc_sum / samples_num))
 
         logging.info("Testing...... | Model : {0} | Task : {1}".format(model.__class__.__name__, train_dataloader.dataset.__class__.__name__))
-        testacc = test(args, model, test_dataloader)
+        testacc = test(args, model, model2, test_dataloader)
         best_epoch = best_epoch if best_acc > testacc else i
         best_acc = best_acc if best_acc > testacc else testacc
         logging.error('Test result acc1: %.4f | best acc: %.4f | best epoch : %d' % (testacc, best_acc, best_epoch))
 
 
-def evaluation(args, model, data_loader):
+def evaluation(args, model, model2, data_loader):
     model.eval()
     samples_num = 0
     acc_sum = 0.0
 
     for j, a_data in enumerate(data_loader):
-        out = model(*a_data)
-
+        _, feature = model(a_data[0], a_data[-1])
+        _, feature2 = model(a_data[1], a_data[-1])
+        out = model2(feature, feature2)
         samples_num += len(a_data[0])
         acc_sum += accuracy(out = out.data.cpu().numpy(), label = a_data[-1])
     model.train()
     return acc_sum / samples_num
 
 
-def test(args, model1, data_loader):
-    return evaluation(args, model1, data_loader)
+def test(args, model1, model2, data_loader):
+    return evaluation(args, model1, model2, data_loader)
 
 
-def dev(args, model1, data_loader):
-    return evaluation(args, model1, data_loader)
+def dev(args, model1, model2, data_loader):
+    return evaluation(args, model1, model2, data_loader)
 
 
 def init_from_scrach(args):
@@ -78,40 +82,29 @@ def init_from_scrach(args):
 
     logging.info('Load the train dataset...')
 
-    # train_dataset = CR(args)
-    # test_dataset = CR(args, is_train = False)
-    # train_dataset = MR(args)
-    # test_dataset = MR(args, is_train = False)
-    # train_dataset = SST(args, nclasses = 2)
-    # test_dataset = SST(args, is_train = False, nclasses = 2)
-    # train_dataset = MPQA(args)
-    # test_dataset = MPQA(args, is_train = False)
-    # train_dataset = SUBJ(args)
-    # test_dataset = SUBJ(args, is_train = False)
-    # train_dataset = TREC(args)
-    # test_dataset = TREC(args, is_train = False)
     train_dataset = SNLI(args)
     test_dataset = SNLI(args, is_train = False)
-    # train_dataset = ImdbDataSet(args, num_words = args.num_words, skip_top = args.skip_top)
-    # test_dataset = ImdbDataSet(args, train = False, num_words = args.num_words, skip_top = args.skip_top)
 
     train_dataloader = DataLoader(dataset = train_dataset, batch_size = args.batch_size, shuffle = False,
-                                  collate_fn = ImdbDataSet.batchfy_fn, pin_memory = True, drop_last = False)
+                                  collate_fn = SNLI.batchfy_fn, pin_memory = True, drop_last = False)
     logging.info('Train data max length : %d' % train_dataset.max_len)
 
     logging.info('Load the test dataset...')
     test_dataloader = DataLoader(dataset = test_dataset, batch_size = args.batch_size, shuffle = False,
-                                 collate_fn = ImdbDataSet.batchfy_fn, pin_memory = True, drop_last = False)
+                                 collate_fn = SNLI.batchfy_fn, pin_memory = True, drop_last = False)
     logging.info('Test data max length : %d' % test_dataset.max_len)
 
     logging.info('Initiating the model...')
-    model = NGramRNN3(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
-                      rnn_layers = 1,
-                      bidirection = args.bidirectional, kernel_size = args.kernel_size, stride = args.stride, num_class = train_dataset.num_class)
+    model = NGramRNN(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
+                     rnn_layers = 1,
+                     bidirection = args.bidirectional, kernel_size = args.kernel_size, stride = args.stride, num_class = train_dataset.num_class)
     model.cuda()
     model.init_optimizer()
+    model2 = ClassifyNet(args = args, input_size = args.hidden_size * 2 if args.bidirectional else args.hidden_size, num_cls = train_dataset.num_class)
+    model2.cuda()
+    model2.init_optimizer()
     logging.info('Model {} initiate over...'.format(model.__class__.__name__))
-    return train_dataloader, test_dataloader, model
+    return train_dataloader, test_dataloader, model, model2
 
 #
 # if __name__ == '__main__':

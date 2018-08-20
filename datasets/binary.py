@@ -13,13 +13,13 @@ from utils.util import logger
 
 
 class BinaryClassifierEval(Dataset):
-    def __init__(self, args, is_train = True, num_class = 2, seed = 1111, file_name = None):
+    def __init__(self, args, is_train = True, num_class = 2, seed = 1111, file_name = ''):
         self.seed = seed
         self.args = args
         self.num_class = num_class
         self.max_len = 0
         file = self.args.train_file if is_train else self.args.test_file
-        self.data_x, self.data_y = self.load_file(os.path.join(self.args.tmp_dir, self.__class__.__name__, file_name, file))
+        self.data_x, self.data_y = self.load_file(os.path.join(self.args.tmp_dir, self.__class__.__name__, file_name + file))
         sorted_corpus = sorted(zip(self.data_x, self.data_y),
                                key = lambda z: (len(z[0]), z[1]))
         self.data_x = [x for (x, y) in sorted_corpus]
@@ -58,6 +58,7 @@ class BinaryClassifierEval(Dataset):
         with open(path, mode = 'r', encoding = 'utf-8') as f:
             for l in f:
                 word2id.setdefault(l.strip(), len(word2id))
+        logger('Word2id size : %d' % len(word2id))
         return word2id
 
     def __getitem__(self, index):
@@ -162,3 +163,4 @@ class SST(BinaryClassifierEval):
     #                 sample = line.strip().split(' ', 1)
     #                 sst_data.append(sample[1].split() + [sample[0]])
     #     return sst_data
+

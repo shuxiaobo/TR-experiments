@@ -9,96 +9,83 @@ import io
 import copy
 import logging
 import numpy as np
+from torch.utils.data import Dataset
+from utils.util import *
+from tensorflow.contrib.keras.api.keras.preprocessing import sequence
 
 
-class SNLIEval(object):
-    def __init__(self, taskpath, seed=1111):
+class SNLI(Dataset):
+    def __init__(self, args, is_train = True, nclasses = 3, seed = 11111, file_name = ''):
+        super(SNLI, self).__init__()
         logging.debug('***** Transfer task : SNLI Entailment*****\n\n')
         self.seed = seed
-        train1 = self.loadFile(os.path.join(taskpath, 's1.train'))
-        train2 = self.loadFile(os.path.join(taskpath, 's2.train'))
+        self.tag_dict = {'neutral': 0, 'entailment': 1, 'contradiction': 2}
+        self.seed = seed
+        self.args = args
+        self.num_class = nclasses
+        self.max_len = 0
+        file = self.args.train_file if is_train else self.args.test_file
+        self.data_x, self.data_y = self.load_file(os.path.join(self.args.tmp_dir, self.__class__.__name__, file_name + file))
 
-        trainlabels = io.open(os.path.join(taskpath, 'labels.train'),
-                              encoding='utf-8').read().splitlines()
+        sorted_corpus = sorted(zip(self.data_x, self.data_y),
+                               key = lambda z: (len(z[0][0]), len(z[0][1]), z[1]))
+        self.data_x = [x for (x, y) in sorted_corpus]
+        self.data_y = [y for (x, y) in sorted_corpus]
 
-        valid1 = self.loadFile(os.path.join(taskpath, 's1.dev'))
-        valid2 = self.loadFile(os.path.join(taskpath, 's2.dev'))
-        validlabels = io.open(os.path.join(taskpath, 'labels.dev'),
-                              encoding='utf-8').read().splitlines()
 
-        test1 = self.loadFile(os.path.join(taskpath, 's1.test'))
-        test2 = self.loadFile(os.path.join(taskpath, 's2.test'))
-        testlabels = io.open(os.path.join(taskpath, 'labels.test'),
-                             encoding='utf-8').read().splitlines()
+        if args.debug:
+            self.data_y = self.data_y[:1000]
+            self.data_x = self.data_x[:1000]
+        self.n_samples = len(self.data_x)
+        self.word_file = os.path.join(args.tmp_dir, self.__class__.__name__, file_name + args.word_file)
+        if os.path.isfile(self.word_file) and os.path.getsize(self.word_file) > 0:
+            self.word2id = self.get_word_index(self.word_file)
+        else:
+            self.word2id = self.prepare_dict(self.word_file)
 
-        # sort data (by s2 first) to reduce padding
-        sorted_train = sorted(zip(train2, train1, trainlabels),
-                              key=lambda z: (len(z[0]), len(z[1]), z[2]))
-        train2, train1, trainlabels = map(list, zip(*sorted_train))
+    def load_file(self, fpath):
+        with io.open(fpath, 'r', encoding = 'utf-8') as f:
+            data_x = list()
+            data_y = list()
+            for line in f:
+                line = line.strip().split(' ')
+                line2 = f.readline().strip().split(' ')
+                data_x.append((line, line2))
+                data_y.append(self.tag_dict[f.readline().strip()])
+                self.max_len = max([len(line), len(line2), self.max_len])
+        return data_x, data_y
 
-        sorted_valid = sorted(zip(valid2, valid1, validlabels),
-                              key=lambda z: (len(z[0]), len(z[1]), z[2]))
-        valid2, valid1, validlabels = map(list, zip(*sorted_valid))
+    def prepare_dict(self, file_name):
+        logger("Prepare the dictionary for the {}...".format(self.__class__.__name__))
+        word2id = prepare_dictionary(data = [x[0] for x in self.data_x], dict_path = file_name)
+        word2id = prepare_dictionary(data = [x[1] for x in self.data_x], dict_path = file_name, word2id = word2id)
+        logger("Word2id size : %d" % len(word2id))
+        return word2id
 
-        sorted_test = sorted(zip(test2, test1, testlabels),
-                             key=lambda z: (len(z[0]), len(z[1]), z[2]))
-        test2, test1, testlabels = map(list, zip(*sorted_test))
+    def get_word_index(self, path = None):
+        if not path:
+            path = self.args.tmp_dir + self.__class__.__name__ + self.args.word_file
+        word2id = dict()
+        with open(path, mode = 'r', encoding = 'utf-8') as f:
+            for l in f:
+                word2id.setdefault(l.strip(), len(word2id))
+        logger('Word2id size : %d' % len(word2id))
+        return word2id
 
-        self.samples = train1 + train2 + valid1 + valid2 + test1 + test2
-        self.data = {'train': (train1, train2, trainlabels),
-                     'valid': (valid1, valid2, validlabels),
-                     'test': (test1, test2, testlabels)
-                     }
+    def __getitem__(self, index):
+        result = [self.word2id[d] if self.word2id.get(d) else self.word2id['_<UNKNOW>'] for d in self.data_x[index][0]]
+        result2 = [self.word2id[d] if self.word2id.get(d) else self.word2id['_<UNKNOW>'] for d in self.data_x[index][1]]
+        return result, result2, self.data_y[index]
 
-    def do_prepare(self, params, prepare):
-        return prepare(params, self.samples)
+    def __len__(self):
+        return self.n_samples
 
-    def loadFile(self, fpath):
-        with codecs.open(fpath, 'rb', 'latin-1') as f:
-            return [line.split() for line in
-                    f.read().splitlines()]
+    @staticmethod
+    def batchfy_fn(data):
+        x2 = [d[1] for d in data]
+        x1 = [d[0] for d in data]
+        y = [d[2] for d in data]
+        max_len1 = max([len(x) for x in x1])
+        max_len2 = max([len(x) for x in x2])
 
-    def run(self, params, batcher):
-        self.X, self.y = {}, {}
-        dico_label = {'entailment': 0,  'neutral': 1, 'contradiction': 2}
-        for key in self.data:
-            if key not in self.X:
-                self.X[key] = []
-            if key not in self.y:
-                self.y[key] = []
-
-            input1, input2, mylabels = self.data[key]
-            enc_input = []
-            n_labels = len(mylabels)
-            for ii in range(0, n_labels, params.batch_size):
-                batch1 = input1[ii:ii + params.batch_size]
-                batch2 = input2[ii:ii + params.batch_size]
-
-                if len(batch1) == len(batch2) and len(batch1) > 0:
-                    enc1 = batcher(params, batch1)
-                    enc2 = batcher(params, batch2)
-                    enc_input.append(np.hstack((enc1, enc2, enc1 * enc2,
-                                                np.abs(enc1 - enc2))))
-                if (ii*params.batch_size) % (20000*params.batch_size) == 0:
-                    logging.info("PROGRESS (encoding): %.2f%%" %
-                                 (100 * ii / n_labels))
-            self.X[key] = np.vstack(enc_input)
-            self.y[key] = [dico_label[y] for y in mylabels]
-
-        config = {'nclasses': 3, 'seed': self.seed,
-                  'usepytorch': params.usepytorch,
-                  'cudaEfficient': True,
-                  'nhid': params.nhid, 'noreg': True}
-
-        config_classifier = copy.deepcopy(params.classifier)
-        config_classifier['max_epoch'] = 15
-        config_classifier['epoch_size'] = 1
-        config['classifier'] = config_classifier
-
-        clf = SplitClassifier(self.X, self.y, config)
-        devacc, testacc = clf.run()
-        logging.debug('Dev acc : {0} Test acc : {1} for SNLI\n'
-                      .format(devacc, testacc))
-        return {'devacc': devacc, 'acc': testacc,
-                'ndev': len(self.data['valid'][0]),
-                'ntest': len(self.data['test'][0])}
+        return sequence.pad_sequences(x1, maxlen = max_len1, padding = 'post'), sequence.pad_sequences(x2, maxlen = max_len2, padding = 'post'), y

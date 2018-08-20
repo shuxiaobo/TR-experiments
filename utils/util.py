@@ -44,8 +44,8 @@ def gen_embeddings(word_dict, embed_dim, in_file = None, init = np.random.unifor
     return embedding_matrix
 
 
-def prepare_dictionary(data, dict_path, exclude_n = 10, max_size = 10000):
-    word2id = dict()
+def prepare_dictionary(data, dict_path, exclude_n = 10, max_size = 10000, word2id = None):
+    word2id = dict() if word2id == None else word2id
     for i, d in enumerate(data):
         for j, s in enumerate(d):
             if s not in word2id.keys():

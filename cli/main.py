@@ -8,9 +8,10 @@ import sys
 import os
 
 sys.path.append(os.getcwd() + '/..')
-torch.cuda.set_device(0)
+torch.cuda.set_device(1)
 from cli.train import train
 from cli.preprocess import preprocess
+from cli.train_snli import train as train_nli
 
 
 def main():
@@ -64,17 +65,17 @@ def main():
     # train hyper-parameters
     group3 = parser.add_argument_group("3. train common hyper-parameters for model")
 
-    group3.add_argument("--batch_size", default = 64, type = int, help = "batch size for train")
+    group3.add_argument("--batch_size", default = 128, type = int, help = "batch size for train")
 
     group3.add_argument("--lr", default = 3e-3, type = float, help = "lr for model learning")
 
     group3.add_argument("--keep_prob", default = 0.5, type = float, help = "the keep prob")
 
-    group3.add_argument("--optimizer", default = "ADAM", choices = ["SGD", "ADAM", "ADAD"], help = "optimize algorithms, SGD or Adam")
+    group3.add_argument("--optimizer", default = "SGD", choices = ["SGD", "ADAM", "ADAD"], help = "optimize algorithms, SGD or Adam")
 
-    group3.add_argument("--hidden_size", default = 30, type = int, help = "RNN hidden size")
+    group3.add_argument("--hidden_size", default = 300, type = int, help = "RNN hidden size")
 
-    group3.add_argument("--embedding_dim", default = 30, type = int, help = "dimension of word embeddings")
+    group3.add_argument("--embedding_dim", default = 300, type = int, help = "dimension of word embeddings")
 
     group3.add_argument("--grad_clipping", default = 10, type = int, help = "the threshold value of gradient clip")
 
@@ -93,11 +94,16 @@ def main():
 
     group4.add_argument('--bidirectional', default = True, type = bool, help = 'Use the bi-directional rnn.')
 
+    group4.add_argument('--task', default = 1, type = int, help = 'task')
+
     args = parser.parse_args()
 
     print(args)
     if args.mode == 1:
-        train(args)
+        if args.task == 0:
+            train(args)
+        elif args.task == 1:
+            train_nli(args)
     elif args.mode == 0:
         preprocess(args)
     else:
