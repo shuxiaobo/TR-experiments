@@ -25,9 +25,10 @@ class NGramRNN(BaseModel):
         self.bidirection = bidirection
         self.kernel_size = kernel_size
         self.stride = stride
+        self.rnn_layers = rnn_layers
 
         self.embedding = nn.Embedding(vocabulary_size, embedding_size)
-        self.rnn1 = nn.LSTM(embedding_size, embedding_size, num_layers = rnn_layers, bias = False, bidirectional = bidirection, batch_first = True)
+        self.rnn1 = nn.LSTM(embedding_size, hidden_size, num_layers = rnn_layers, bias = False, bidirectional = bidirection, batch_first = True)
         self.rnn2 = nn.LSTM(embedding_size * 3 if bidirection else embedding_size * 2, hidden_size, rnn_layers, bias = False, bidirectional = bidirection,
                             batch_first = True)
 
@@ -50,11 +51,11 @@ class NGramRNN(BaseModel):
         outputs, (h, c) = self.rnn2(torch.cat([expanded_out, x_embed], -1))
         outputs = outputs * mask.unsqueeze(-1)
 
-        output_maxpooled, _ = torch.max(outputs, 1)
-        # output_maxpooled = h.transpose(0, 1).contiguous().view(x.shape[0], -1)
+        # output_maxpooled, _ = torch.max(outputs, 1)
+        output_maxpooled = h.transpose(0, 1).contiguous().view(x.shape[0], -1)
 
         class_prob = self.linear(output_maxpooled)
-        return class_prob, output_maxpooled
+        return class_prob, F.dropout(output_maxpooled)
 
     def gather_rnnstate(self, data, mask):
         """

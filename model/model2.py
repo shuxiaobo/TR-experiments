@@ -43,7 +43,7 @@ class NGramRNN2(BaseModel):
         # output_maxpooled = self.gather_rnnstate(outputs, reduced_mask)
         output_maxpooled, _ = torch.max(outputs, 1)
         class_prob = self.linear(output_maxpooled)
-        return class_prob, output_maxpooled
+        return class_prob, F.dropout(output_maxpooled)
 
     def gather_rnnstate(self, data, mask):
         """

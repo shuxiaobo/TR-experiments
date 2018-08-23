@@ -11,7 +11,6 @@ from model.model2 import NGramRNN2
 from model.model3 import NGramRNN3
 from model.baseline import BaseLineRNN
 from utils.util import accuracy
-import logging
 from datasets.binary import *
 from datasets.snli import SNLI
 from model.layers import ClassifyNet
@@ -44,7 +43,7 @@ def train(args):
             acc_sum += accuracy(out = out.data.cpu().numpy(), label = a_data[-1])
             if (j + 1) % args.print_every_n == 0:
                 logging.info('train: Epoch = %d | iter = %d/%d | ' %
-                             (i, j, len(train_dataloader)) + 'loss sum = %.2f | accuracy : %.4f' % (
+                             (i, j, len(train_dataloader)) + 'loss sum = %.4f | accuracy : %.4f' % (
                                  loss_sum * 1.0 / j, acc_sum / samples_num))
 
         logging.info("Testing...... | Model : {0} | Task : {1}".format(model.__class__.__name__, train_dataloader.dataset.__class__.__name__))
@@ -95,12 +94,15 @@ def init_from_scrach(args):
     logging.info('Test data max length : %d' % test_dataset.max_len)
 
     logging.info('Initiating the model...')
-    model = NGramRNN(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
-                     rnn_layers = 1,
-                     bidirection = args.bidirectional, kernel_size = args.kernel_size, stride = args.stride, num_class = train_dataset.num_class)
+    model = BaseLineRNN(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
+                        rnn_layers = args.num_layers,
+                        bidirection = args.bidirectional, kernel_size = args.kernel_size, stride = args.stride, num_class = train_dataset.num_class)
+    # model = NGramRNN3(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
+    #                     rnn_layers = args.num_layers,
+    #                     bidirection = args.bidirectional, kernel_size = args.kernel_size, stride = args.stride, num_class = train_dataset.num_class)
     model.cuda()
     model.init_optimizer()
-    model2 = ClassifyNet(args = args, input_size = args.hidden_size * 2 if args.bidirectional else args.hidden_size, num_cls = train_dataset.num_class)
+    model2 = ClassifyNet(args = args, input_size = args.hidden_size * 2 if args.bidirectional else args.hidden_size , num_cls = train_dataset.num_class)
     model2.cuda()
     model2.init_optimizer()
     logging.info('Model {} initiate over...'.format(model.__class__.__name__))

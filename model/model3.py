@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 # Created by ShaneSue on 2018/8/2
 
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from .base_model import BaseModel
-import torch
 from tensorflow.contrib.keras.api.keras.preprocessing import sequence
 
 USE_CUDA = torch.cuda.is_available()
@@ -25,11 +25,12 @@ class NGramRNN3(BaseModel):
         self.vocalbulary_size = vocabulary_size
         self.bidirection = bidirection
         self.kernel_size = kernel_size
+        self.rnn_layers = rnn_layers
         self.stride = stride
 
         self.embedding = nn.Embedding(vocabulary_size, embedding_size)
-        self.rnn1 = nn.LSTM(embedding_size, embedding_size, num_layers = rnn_layers, bias = False, bidirectional = bidirection, batch_first = True)
-        self.linear = nn.Linear(embedding_size * 2 if bidirection else embedding_size, num_class, bias = False)
+        self.rnn1 = nn.LSTM(embedding_size, hidden_size = hidden_size, num_layers = rnn_layers, bias = False, bidirectional = bidirection, batch_first = True)
+        self.linear = nn.Linear(hidden_size * 2 if bidirection else hidden_size, num_class, bias = False)
         self.dropout = nn.Dropout(p = self.args.keep_prob)
         self.param = nn.Parameter(torch.randn(self.stride, embedding_size))
 
@@ -48,7 +49,7 @@ class NGramRNN3(BaseModel):
         output_maxpooled, _ = torch.max(outputs, 1)
         # output_maxpooled = h.view(h.shape[1], -1)
         class_prob = self.linear(output_maxpooled)
-        return class_prob, output_maxpooled
+        return class_prob, F.dropout(output_maxpooled)
 
     def gather_rnnstate(self, data, mask):
         """

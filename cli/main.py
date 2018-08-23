@@ -6,9 +6,10 @@ import argparse
 import torch
 import sys
 import os
+from pprint import pprint
 
 sys.path.append(os.getcwd() + '/..')
-torch.cuda.set_device(1)
+torch.cuda.set_device(0)
 from cli.train import train
 from cli.preprocess import preprocess
 from cli.train_snli import train as train_nli
@@ -36,7 +37,7 @@ def main():
 
     group1.add_argument("--args_file", default = None, type = str, help = "json file of current args")
 
-    group1.add_argument("--print_every_n", default = 10, type = int, help = "print performance every n steps")
+    group1.add_argument("--print_every_n", default = 100, type = int, help = "print performance every n steps")
 
     group1.add_argument("--save_val", default = False, type = bool, help = "whether save the validation prediction result.")
 
@@ -65,15 +66,15 @@ def main():
     # train hyper-parameters
     group3 = parser.add_argument_group("3. train common hyper-parameters for model")
 
-    group3.add_argument("--batch_size", default = 128, type = int, help = "batch size for train")
+    group3.add_argument("--batch_size", default = 64, type = int, help = "batch size for train")
 
-    group3.add_argument("--lr", default = 3e-3, type = float, help = "lr for model learning")
+    group3.add_argument("--lr", default = 1e-3, type = float, help = "lr for model learning")
 
     group3.add_argument("--keep_prob", default = 0.5, type = float, help = "the keep prob")
 
-    group3.add_argument("--optimizer", default = "SGD", choices = ["SGD", "ADAM", "ADAD"], help = "optimize algorithms, SGD or Adam")
+    group3.add_argument("--optimizer", default = "ADAM", choices = ["SGD", "ADAM", "ADAD"], help = "optimize algorithms, SGD or Adam")
 
-    group3.add_argument("--hidden_size", default = 300, type = int, help = "RNN hidden size")
+    group3.add_argument("--hidden_size", default = 128, type = int, help = "RNN hidden size")
 
     group3.add_argument("--embedding_dim", default = 300, type = int, help = "dimension of word embeddings")
 
@@ -94,11 +95,13 @@ def main():
 
     group4.add_argument('--bidirectional', default = True, type = bool, help = 'Use the bi-directional rnn.')
 
-    group4.add_argument('--task', default = 1, type = int, help = 'task')
+    group4.add_argument('--task', default = 0, type = int, help = 'task')
+
+    group4.add_argument('--num_layers', default = 1, type = int, help = 'number of layers')
 
     args = parser.parse_args()
 
-    print(args)
+    pprint(vars(args), indent = 4)
     if args.mode == 1:
         if args.task == 0:
             train(args)

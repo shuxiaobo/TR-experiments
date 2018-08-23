@@ -4,6 +4,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from model.RNN.indrnn import IndRNN
 from model.base_model import BaseModel
 from utils.util import gather_rnnstate
 from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
@@ -27,8 +28,8 @@ class BaseLineRNN(BaseModel):
         self.stride = stride
 
         self.embedding = nn.Embedding(vocabulary_size, embedding_size)
-        self.rnn = nn.LSTM(embedding_size, hidden_size, num_layers = rnn_layers, bias = False, bidirectional = bidirection, batch_first = True)
-
+        # self.rnn = nn.LSTM(embedding_size, hidden_size, num_layers = rnn_layers, bias = False, bidirectional = bidirection, batch_first = True)
+        self.rnn = IndRNN(input_size = embedding_size, hidden_size = hidden_size, n_layer = rnn_layers, bidirectional = bidirection, batch_first = True)
         self.linear = nn.Linear(hidden_size * 2 if bidirection else hidden_size, num_class, bias = False)
         self.dropout = nn.Dropout(p = self.args.keep_prob)
 
@@ -38,7 +39,8 @@ class BaseLineRNN(BaseModel):
         # x_embed = self.embedding(x) * mask.unsqueeze(-1)  # here can not use the mask while using the last hidden state.
         x_embed = self.embedding(x)  # here can not use the mask while using the last hidden state.
         x_embed = self.dropout(x_embed)
-        outputs, (h, c) = self.rnn(x_embed)
+        outputs, h = self.rnn(x_embed)
+        # outputs, (h, c) = self.rnn(x_embed)
         batch_size = x.shape[0]
         h = h.transpose(0, 1).contiguous().view(batch_size, -1)
         outputs = gather_rnnstate(data = outputs, mask = mask)

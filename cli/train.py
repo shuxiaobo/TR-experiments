@@ -57,7 +57,7 @@ def evaluation(args, model, data_loader):
     acc_sum = 0.0
 
     for j, a_data in enumerate(data_loader):
-        out = model(*a_data)
+        out, _ = model(*a_data)
 
         samples_num += len(a_data[0])
         acc_sum += accuracy(out = out.data.cpu().numpy(), label = a_data[-1])
@@ -88,10 +88,8 @@ def init_from_scrach(args):
     # test_dataset = MPQA(args, is_train = False)
     # train_dataset = SUBJ(args)
     # test_dataset = SUBJ(args, is_train = False)
-    # train_dataset = TREC(args)
-    # test_dataset = TREC(args, is_train = False)
-    train_dataset = SNLI(args)
-    test_dataset = SNLI(args, is_train = False)
+    train_dataset = TREC(args)
+    test_dataset = TREC(args, is_train = False)
     # train_dataset = ImdbDataSet(args, num_words = args.num_words, skip_top = args.skip_top)
     # test_dataset = ImdbDataSet(args, train = False, num_words = args.num_words, skip_top = args.skip_top)
 
@@ -105,7 +103,7 @@ def init_from_scrach(args):
     logging.info('Test data max length : %d' % test_dataset.max_len)
 
     logging.info('Initiating the model...')
-    model = NGramRNN3(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
+    model = BaseLineRNN(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
                       rnn_layers = 1,
                       bidirection = args.bidirectional, kernel_size = args.kernel_size, stride = args.stride, num_class = train_dataset.num_class)
     model.cuda()
