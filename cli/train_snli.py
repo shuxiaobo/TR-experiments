@@ -3,6 +3,8 @@
 # Created by ShaneSue on 2018/8/20
 from __future__ import absolute_import
 from torch.utils.data import DataLoader
+import os
+import time
 import torch
 import numpy as np
 from datasets.imdb import ImdbDataSet
@@ -14,6 +16,7 @@ from utils.util import accuracy
 from datasets.binary import *
 from datasets.snli import SNLI
 from model.layers import ClassifyNet
+from tensorboardX import SummaryWriter
 
 logging.basicConfig(level = logging.DEBUG, format = '%(asctime)s %(filename)s[line:%(lineno)d]： %(message)s', datefmt = '%Y-%m-%d %I:%M:%S')
 
@@ -22,30 +25,35 @@ def train(args):
     train_dataloader, test_dataloader, model, model2 = init_from_scrach(args)
     best_acc = 0.0
     best_epoch = 0
+    writer = SummaryWriter(log_dir = os.path.join(args.log_dir, time.strftime('%Y%m%d_%H:%M:%S')))
     for i in range(args.num_epoches):
         loss_sum = 0
         acc_sum = 0.0
         samples_num = 0
         for j, a_data in enumerate(train_dataloader):
             model.optimizer.zero_grad()
-
             _, feature = model(a_data[0], a_data[-1])
             _, feature2 = model(a_data[1], a_data[-1])
             out = model2(feature, feature2)
             loss = model2.loss(out, a_data[-1])
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clipping)
-            model.optimizer.step()
-
             loss_sum += loss.item()
-
             samples_num += len(a_data[0])
-            acc_sum += accuracy(out = out.data.cpu().numpy(), label = a_data[-1])
+            acc = accuracy(out = out.data.cpu().numpy(), label = a_data[-1])
+            acc_sum += acc
+            writer.add_scalar('epoch%d/loss' % i, loss_sum / (j + 1), j)
+            writer.add_scalar('epoch%d/accuracy' % i, acc_sum / samples_num, j)
+
             if (j + 1) % args.print_every_n == 0:
                 logging.info('train: Epoch = %d | iter = %d/%d | ' %
                              (i, j, len(train_dataloader)) + 'loss sum = %.4f | accuracy : %.4f' % (
                                  loss_sum * 1.0 / j, acc_sum / samples_num))
 
+                for name, param in model.named_parameters():
+                    writer.add_histogram(name, param.clone().cpu().data.numpy(), j)
+
+            model.optimizer.step()
         logging.info("Testing...... | Model : {0} | Task : {1}".format(model.__class__.__name__, train_dataloader.dataset.__class__.__name__))
         testacc = test(args, model, model2, test_dataloader)
         best_epoch = best_epoch if best_acc > testacc else i
@@ -102,7 +110,7 @@ def init_from_scrach(args):
     #                     bidirection = args.bidirectional, kernel_size = args.kernel_size, stride = args.stride, num_class = train_dataset.num_class)
     model.cuda()
     model.init_optimizer()
-    model2 = ClassifyNet(args = args, input_size = args.hidden_size * 2 if args.bidirectional else args.hidden_size , num_cls = train_dataset.num_class)
+    model2 = ClassifyNet(args = args, input_size = args.hidden_size * 2 if args.bidirectional else args.hidden_size, num_cls = train_dataset.num_class)
     model2.cuda()
     model2.init_optimizer()
     logging.info('Model {} initiate over...'.format(model.__class__.__name__))

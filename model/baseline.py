@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from model.RNN.indrnn import IndRNN
 from model.base_model import BaseModel
 from utils.util import gather_rnnstate
+from model.RNN.basic_rnn import BaseRNN
 from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
 
 USE_CUDA = torch.cuda.is_available()
@@ -28,8 +29,8 @@ class BaseLineRNN(BaseModel):
         self.stride = stride
 
         self.embedding = nn.Embedding(vocabulary_size, embedding_size)
-        # self.rnn = nn.LSTM(embedding_size, hidden_size, num_layers = rnn_layers, bias = False, bidirectional = bidirection, batch_first = True)
-        self.rnn = IndRNN(input_size = embedding_size, hidden_size = hidden_size, n_layer = rnn_layers, bidirectional = bidirection, batch_first = True)
+        # self.rnn = nn.GRU(embedding_size, hidden_size, num_layers = rnn_layers, bias = False, bidirectional = bidirection, batch_first = True)
+        self.rnn = BaseRNN(args, input_size = embedding_size, hidden_size = hidden_size, n_layer = rnn_layers, bidirectional = bidirection, batch_first = True)
         self.linear = nn.Linear(hidden_size * 2 if bidirection else hidden_size, num_class, bias = False)
         self.dropout = nn.Dropout(p = self.args.keep_prob)
 

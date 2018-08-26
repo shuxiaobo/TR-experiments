@@ -56,7 +56,7 @@ class IndRNNCell(nn.Module):
     def __init__(self, input_size, hidden_size, bias = True, nonlinearity = "relu",
                  hidden_min_abs = 0, hidden_max_abs = None,
                  hidden_init = None, recurrent_init = None,
-                 gradient_clip = None):
+                 gradient_clip = 5):
         super(IndRNNCell, self).__init__()
         self.hidden_max_abs = hidden_max_abs
         self.hidden_min_abs = hidden_min_abs

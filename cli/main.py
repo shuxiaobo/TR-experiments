@@ -41,6 +41,7 @@ def main():
 
     group1.add_argument("--save_val", default = False, type = bool, help = "whether save the validation prediction result.")
 
+    group1.add_argument('--log_dir', default ='../logs/', type = str, help = 'tensorboard log dir')
     # data specific argument
     group2 = parser.add_argument_group("2.Data specific options")
     # noinspection PyUnresolvedReferences
@@ -66,7 +67,7 @@ def main():
     # train hyper-parameters
     group3 = parser.add_argument_group("3. train common hyper-parameters for model")
 
-    group3.add_argument("--batch_size", default = 64, type = int, help = "batch size for train")
+    group3.add_argument("--batch_size", default = 256, type = int, help = "batch size for train")
 
     group3.add_argument("--lr", default = 1e-3, type = float, help = "lr for model learning")
 
@@ -74,9 +75,9 @@ def main():
 
     group3.add_argument("--optimizer", default = "ADAM", choices = ["SGD", "ADAM", "ADAD"], help = "optimize algorithms, SGD or Adam")
 
-    group3.add_argument("--hidden_size", default = 128, type = int, help = "RNN hidden size")
+    group3.add_argument("--hidden_size", default = 100, type = int, help = "RNN hidden size")
 
-    group3.add_argument("--embedding_dim", default = 300, type = int, help = "dimension of word embeddings")
+    group3.add_argument("--embedding_dim", default = 100, type = int, help = "dimension of word embeddings")
 
     group3.add_argument("--grad_clipping", default = 10, type = int, help = "the threshold value of gradient clip")
 
