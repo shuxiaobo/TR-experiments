@@ -19,7 +19,7 @@ class ImdbDataSet(Dataset):
                  maxlen = None,
                  start_char = 1,
                  oov_char = 2,
-                 index_from = 3):
+                 index_from = 3, num_class = 2):
         self.args = args
         (train_data_x, train_data_y), (test_data_x, test_data_y) = self.load_data(
             path = os.getcwd() + '/' + self.args.tmp_dir + self.__class__.__name__ + '/imdb.npz',
@@ -28,7 +28,8 @@ class ImdbDataSet(Dataset):
             oov_char = oov_char, index_from = index_from)
         self.data_x = train_data_x if train else test_data_x
         self.data_y = train_data_y if train else test_data_y
-
+        self.max_len = 1190
+        self.num_class = num_class
         # sorted_corpus = sorted(zip(self.data_x, self.data_y),
         #                        key = lambda z: (len(z[0]), z[1]))
         # self.data_x = [x for (x, y) in sorted_corpus]

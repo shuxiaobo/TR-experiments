@@ -22,6 +22,7 @@ def train(args):
     train_dataloader, test_dataloader, model = init_from_scrach(args)
     best_acc = 0.0
     best_epoch = 0
+    logger('Begin training...')
     for i in range(args.num_epoches):
         loss_sum = 0
         acc_sum = 0.0
@@ -32,7 +33,8 @@ def train(args):
             out, feature = model(*a_data)
             loss = model.loss(out, a_data[-1])
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clipping)
+            if args.grad_clipping != 0:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clipping)
             model.optimizer.step()
 
             loss_sum += loss.item()
@@ -77,7 +79,6 @@ def init_from_scrach(args):
     logging.info('No trained model provided. init model from scratch...')
 
     logging.info('Load the train dataset...')
-
     # train_dataset = CR(args)
     # test_dataset = CR(args, is_train = False)
     # train_dataset = MR(args)
@@ -88,10 +89,10 @@ def init_from_scrach(args):
     # test_dataset = MPQA(args, is_train = False)
     # train_dataset = SUBJ(args)
     # test_dataset = SUBJ(args, is_train = False)
-    train_dataset = TREC(args)
-    test_dataset = TREC(args, is_train = False)
-    # train_dataset = ImdbDataSet(args, num_words = args.num_words, skip_top = args.skip_top)
-    # test_dataset = ImdbDataSet(args, train = False, num_words = args.num_words, skip_top = args.skip_top)
+    # train_dataset = TREC(args)
+    # test_dataset = TREC(args, is_train = False)
+    train_dataset = ImdbDataSet(args, num_words = args.num_words, skip_top = args.skip_top)
+    test_dataset = ImdbDataSet(args, train = False, num_words = args.num_words, skip_top = args.skip_top)
 
     train_dataloader = DataLoader(dataset = train_dataset, batch_size = args.batch_size, shuffle = False,
                                   collate_fn = ImdbDataSet.batchfy_fn, pin_memory = True, drop_last = False)
@@ -104,11 +105,12 @@ def init_from_scrach(args):
 
     logging.info('Initiating the model...')
     model = BaseLineRNN(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
-                      rnn_layers = 1,
-                      bidirection = args.bidirectional, kernel_size = args.kernel_size, stride = args.stride, num_class = train_dataset.num_class)
+                        rnn_layers = 1,
+                        bidirection = args.bidirectional, kernel_size = args.kernel_size, stride = args.stride, num_class = train_dataset.num_class)
     model.cuda()
     model.init_optimizer()
     logging.info('Model {} initiate over...'.format(model.__class__.__name__))
+    logger(model)
     return train_dataloader, test_dataloader, model
 
 #

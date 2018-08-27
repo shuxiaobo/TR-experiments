@@ -37,11 +37,11 @@ def main():
 
     group1.add_argument("--args_file", default = None, type = str, help = "json file of current args")
 
-    group1.add_argument("--print_every_n", default = 100, type = int, help = "print performance every n steps")
+    group1.add_argument("--print_every_n", default = 10, type = int, help = "print performance every n steps")
 
     group1.add_argument("--save_val", default = False, type = bool, help = "whether save the validation prediction result.")
 
-    group1.add_argument('--log_dir', default ='../logs/', type = str, help = 'tensorboard log dir')
+    group1.add_argument('--log_dir', default = '../logs/', type = str, help = 'tensorboard log dir')
     # data specific argument
     group2 = parser.add_argument_group("2.Data specific options")
     # noinspection PyUnresolvedReferences
@@ -79,9 +79,9 @@ def main():
 
     group3.add_argument("--embedding_dim", default = 100, type = int, help = "dimension of word embeddings")
 
-    group3.add_argument("--grad_clipping", default = 10, type = int, help = "the threshold value of gradient clip")
+    group3.add_argument("--grad_clipping", default = 0, type = int, help = "the threshold value of gradient clip")
 
-    group3.add_argument("--num_epoches", default = 100, type = int, help = "max epoch iterations")
+    group3.add_argument("--num_epoches", default = 200, type = int, help = "max epoch iterations")
 
     group3.add_argument("--num_words", default = 10000, type = int, help = "max length of the sentences")
 

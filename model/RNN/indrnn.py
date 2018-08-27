@@ -182,7 +182,7 @@ class IndRNN(nn.Module):
         >>> output = rnn(input, h0)
     """
 
-    def __init__(self, input_size, hidden_size, n_layer = 1, batch_norm = False,
+    def __init__(self, args, input_size, hidden_size, n_layer = 1, batch_norm = False,
                  batch_first = False, bidirectional = False,
                  hidden_inits = None, recurrent_inits = None,
                  **kwargs):
@@ -229,7 +229,6 @@ class IndRNN(nn.Module):
         time_index = self.time_index
         batch_index = self.batch_index
         num_directions = 2 if self.bidirectional else 1
-
         for i, directions in enumerate(self.cells):
             hx = self.h0.unsqueeze(0).expand(
                 x.size(batch_index),
