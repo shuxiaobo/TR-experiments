@@ -38,7 +38,7 @@ class BinaryClassifierEval(Dataset):
             data_y = list()
             for line in f.read().splitlines():
                 line = line.strip().split(' ')
-                if len(line) <= 1:
+                if len(line) <= 3:
                     continue
                 data_x.append(line[:-1])
                 data_y.append(int(line[-1]))
@@ -107,6 +107,12 @@ class MPQA(BinaryClassifierEval):
         super(self.__class__, self).__init__(args, is_train, seed)
 
 
+class Kaggle(BinaryClassifierEval):
+    def __init__(self, args, is_train = True, seed = 1111):
+        logging.debug('***** Transfer task : Kaggle *****\n\n')
+        super(Kaggle, self).__init__(args, is_train, seed)
+
+
 class TREC(BinaryClassifierEval):
     def __init__(self, args, is_train = True, seed = 1111):
         logging.info('***** Transfer task : TREC *****\n\n')
@@ -163,4 +169,3 @@ class SST(BinaryClassifierEval):
     #                 sample = line.strip().split(' ', 1)
     #                 sst_data.append(sample[1].split() + [sample[0]])
     #     return sst_data
-

@@ -86,8 +86,8 @@ def prepare_split(X, y, validation_data = None, validation_split = None):
         permutation = np.random.permutation(len(X))
         trainidx = permutation[int(validation_split * len(X)):]
         devidx = permutation[0:int(validation_split * len(X))]
-        trainX, trainy = X[trainidx], y[trainidx]
-        devX, devy = X[devidx], y[devidx]
+        trainX, trainy = np.array(X)[trainidx], np.array(y)[trainidx]
+        devX, devy = np.array(X)[devidx], np.array(y)[devidx]
 
     return trainX.tolist(), trainy.tolist(), devX.tolist(), devy.tolist()
 

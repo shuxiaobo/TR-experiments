@@ -34,13 +34,15 @@ class BaseRNNCell(nn.Module):
             self.activation = F.relu
         elif self.nonlinearity == "sigmoid":
             self.activation = F.sigmoid
+        elif self.nonlinearity == "log":
+            self.activation = torch.log
         else:
             raise RuntimeError(
                 "Unknown nonlinearity: {}".format(self.nonlinearity))
 
         self.weight_ih = Parameter(torch.eye(hidden_size, input_size))
-        self.weight_hh = Parameter(torch.eye(hidden_size, hidden_size))
-        self.weight_hh1 = Parameter(torch.eye(hidden_size, hidden_size))
+        self.weight_hh = Parameter(torch.eye(hidden_size, 20))
+        self.weight_hh1 = Parameter(torch.eye(20, hidden_size))
         if bias:
             self.bias_ih = Parameter(torch.randn(hidden_size))
         else:
@@ -73,7 +75,12 @@ class BaseRNNCell(nn.Module):
             self.weight_hh.data = self.weight_hh.clamp(max = self.hidden_max_abs, min = -self.hidden_max_abs)
 
     def forward(self, input, hx):
+        # x = F.linear(input, self.weight_ih, self.bias_ih) + torch.matmul(hx, self.weight_hh.matmul(self.weight_hh1))
+        # return self.talor(x)
         return self.activation(F.linear(input, self.weight_ih, self.bias_ih) + torch.matmul(hx, self.weight_hh.matmul(self.weight_hh1)))
+
+    def talor(self, x):
+        return (x - 1) - (x - 1) * (x - 1) / 2 + (x - 1) * (x - 1) * (x - 1) / 3
 
 
 class BaseRNN(BaseModel):

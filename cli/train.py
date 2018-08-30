@@ -75,6 +75,28 @@ def dev(args, model1, data_loader):
     return evaluation(args, model1, data_loader)
 
 
+def get_batch(args):
+    """Generate the adding problem dataset"""
+    # Build the first sequence
+    TIME_STEPS = 100
+    BATCH_SIZE = args.batch_size
+    add_values = np.random.rand(args.batch_size, TIME_STEPS)
+
+    # Build the second sequence with one 1 in each half and 0s otherwise
+    add_indices = np.zeros_like(add_values)
+    half = int(TIME_STEPS / 2)
+    for i in range(BATCH_SIZE):
+        first_half = np.random.randint(half)
+        second_half = np.random.randint(half, TIME_STEPS)
+        add_indices[i, [first_half, second_half]] = 1
+
+    # Zip the values and indices in a third dimension:
+    # inputs has the shape (batch_size, time_steps, 2)
+    inputs = np.dstack((add_values, add_indices))
+    targets = np.sum(np.multiply(add_values, add_indices), axis = 1)
+    return inputs, targets
+
+
 def init_from_scrach(args):
     logging.info('No trained model provided. init model from scratch...')
 
@@ -91,8 +113,10 @@ def init_from_scrach(args):
     # test_dataset = SUBJ(args, is_train = False)
     # train_dataset = TREC(args)
     # test_dataset = TREC(args, is_train = False)
-    train_dataset = ImdbDataSet(args, num_words = args.num_words, skip_top = args.skip_top)
-    test_dataset = ImdbDataSet(args, train = False, num_words = args.num_words, skip_top = args.skip_top)
+    train_dataset = Kaggle(args)
+    test_dataset = Kaggle(args, is_train = False)
+    # train_dataset = ImdbDataSet(args, num_words = args.num_words, skip_top = args.skip_top)
+    # test_dataset = ImdbDataSet(args, train = False, num_words = args.num_words, skip_top = args.skip_top)
 
     train_dataloader = DataLoader(dataset = train_dataset, batch_size = args.batch_size, shuffle = False,
                                   collate_fn = ImdbDataSet.batchfy_fn, pin_memory = True, drop_last = False)
@@ -105,7 +129,7 @@ def init_from_scrach(args):
 
     logging.info('Initiating the model...')
     model = BaseLineRNN(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
-                        rnn_layers = 1,
+                        rnn_layers = args.num_layers,
                         bidirection = args.bidirectional, kernel_size = args.kernel_size, stride = args.stride, num_class = train_dataset.num_class)
     model.cuda()
     model.init_optimizer()

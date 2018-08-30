@@ -96,7 +96,7 @@ def main():
 
     group4.add_argument('--bidirectional', default = True, type = bool, help = 'Use the bi-directional rnn.')
 
-    group4.add_argument('--task', default = 0, type = int, help = 'task')
+    group4.add_argument('--task', default = 0, type = int, help = 'task 1 for nli, 0 for classify')
 
     group4.add_argument('--num_layers', default = 1, type = int, help = 'number of layers')
 
