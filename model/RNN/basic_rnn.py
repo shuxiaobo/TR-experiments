@@ -15,7 +15,7 @@ import math
 
 class BaseRNNCell(nn.Module):
 
-    def __init__(self, input_size, hidden_size, bias = False, nonlinearity = "relu",
+    def __init__(self, input_size, hidden_size, bias = False, nonlinearity = "tanh",
                  hidden_min_abs = 0, hidden_max_abs = None,
                  hidden_init = None, recurrent_init = None,
                  gradient_clip = 5):
@@ -42,7 +42,7 @@ class BaseRNNCell(nn.Module):
 
         self.weight_ih = Parameter(torch.eye(hidden_size, input_size))
         self.weight_hh = Parameter(torch.eye(hidden_size, 20))
-        self.weight_hh1 = Parameter(torch.eye(20, hidden_size))
+        self.weight_hh1 = Parameter(torch.eye(input_size, hidden_size))
         if bias:
             self.bias_ih = Parameter(torch.randn(hidden_size))
         else:
@@ -77,7 +77,7 @@ class BaseRNNCell(nn.Module):
     def forward(self, input, hx):
         # x = F.linear(input, self.weight_ih, self.bias_ih) + torch.matmul(hx, self.weight_hh.matmul(self.weight_hh1))
         # return self.talor(x)
-        return self.activation(F.linear(input, self.weight_ih, self.bias_ih) + torch.matmul(hx, self.weight_hh.matmul(self.weight_hh1)))
+        return self.activation(F.linear(input, self.weight_ih, self.bias_ih) + torch.matmul(hx, self.weight_ih.matmul(self.weight_hh1)))
 
     def talor(self, x):
         return (x - 1) - (x - 1) * (x - 1) / 2 + (x - 1) * (x - 1) * (x - 1) / 3

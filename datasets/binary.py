@@ -47,7 +47,7 @@ class BinaryClassifierEval(Dataset):
 
     def prepare_dict(self, file_name):
         logger("Prepare the dictionary for the {}...".format(self.__class__.__name__))
-        word2id = prepare_dictionary(data = self.data_x, dict_path = file_name)
+        word2id = prepare_dictionary(data = self.data_x, dict_path = file_name, exclude_n = self.args.skip_top, max_size = self.args.num_words)
         logger("Word2id size : %d" % len(word2id))
         return word2id
 
@@ -110,7 +110,7 @@ class MPQA(BinaryClassifierEval):
 class Kaggle(BinaryClassifierEval):
     def __init__(self, args, is_train = True, seed = 1111):
         logging.debug('***** Transfer task : Kaggle *****\n\n')
-        super(Kaggle, self).__init__(args, is_train, seed)
+        super(Kaggle, self).__init__(args, is_train, num_class = 5, seed = seed)
 
 
 class TREC(BinaryClassifierEval):

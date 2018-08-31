@@ -26,7 +26,9 @@ def train(args):
     best_acc = 0.0
     best_epoch = 0
     iter = 0
-    writer = SummaryWriter(log_dir = os.path.join(args.log_dir, time.strftime('%Y%m%d_%H:%M:%S')))
+    logger_path = os.path.join(args.log_dir, time.strftime('%Y%m%d_%H:%M:%S'))
+    logger('Save log to %s' % logger_path)
+    writer = SummaryWriter(log_dir = logger_path)
     for i in range(args.num_epoches):
         loss_sum = 0
         acc_sum = 0.0

@@ -37,7 +37,7 @@ def main():
 
     group1.add_argument("--args_file", default = None, type = str, help = "json file of current args")
 
-    group1.add_argument("--print_every_n", default = 10, type = int, help = "print performance every n steps")
+    group1.add_argument("--print_every_n", default = 100, type = int, help = "print performance every n steps")
 
     group1.add_argument("--save_val", default = False, type = bool, help = "whether save the validation prediction result.")
 
@@ -69,7 +69,7 @@ def main():
 
     group3.add_argument("--batch_size", default = 256, type = int, help = "batch size for train")
 
-    group3.add_argument("--lr", default = 1e-3, type = float, help = "lr for model learning")
+    group3.add_argument("--lr", default = 1e-4, type = float, help = "lr for model learning")
 
     group3.add_argument("--keep_prob", default = 0.5, type = float, help = "the keep prob")
 
@@ -77,13 +77,13 @@ def main():
 
     group3.add_argument("--hidden_size", default = 100, type = int, help = "RNN hidden size")
 
-    group3.add_argument("--embedding_dim", default = 100, type = int, help = "dimension of word embeddings")
+    group3.add_argument("--embedding_dim", default = 300, type = int, help = "dimension of word embeddings")
 
     group3.add_argument("--grad_clipping", default = 0, type = int, help = "the threshold value of gradient clip")
 
     group3.add_argument("--num_epoches", default = 200, type = int, help = "max epoch iterations")
 
-    group3.add_argument("--num_words", default = 10000, type = int, help = "max length of the sentences")
+    group3.add_argument("--num_words", default = 20000, type = int, help = "max length of the sentences")
 
     group3.add_argument("--skip_top", default = 20, type = int, help = "max length of the sentences")
 
@@ -99,6 +99,8 @@ def main():
     group4.add_argument('--task', default = 0, type = int, help = 'task 1 for nli, 0 for classify')
 
     group4.add_argument('--num_layers', default = 1, type = int, help = 'number of layers')
+
+    group4.add_argument('--activation', default = 'sigmoid', type = str, help = 'activation function for RNN ')
 
     args = parser.parse_args()
 
