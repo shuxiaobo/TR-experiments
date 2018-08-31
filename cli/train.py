@@ -44,11 +44,12 @@ def train(args):
             model.optimizer.step()
             loss_sum += loss.item()
 
-            writer.add_scalar('loss' % i, loss_sum / (j + 1), iter)
-            writer.add_scalar('accuracy' % i, acc_sum / samples_num, iter)
-
             samples_num += len(a_data[0])
             acc_sum += accuracy(out = out.data.cpu().numpy(), label = a_data[-1])
+
+            writer.add_scalar('loss', loss_sum / (j + 1), iter)
+            writer.add_scalar('accuracy', acc_sum / samples_num, iter)
+
             if (j + 1) % args.print_every_n == 0:
                 logging.info('train: Epoch = %d | iter = %d/%d | ' %
                              (i, j, len(train_dataloader)) + 'loss sum = %.2f | accuracy : %.4f' % (
@@ -61,7 +62,7 @@ def train(args):
 
         logging.info("Testing...... | Model : {0} | Task : {1}".format(model.__class__.__name__, train_dataloader.dataset.__class__.__name__))
         testacc = test(args, model, test_dataloader)
-        if best_acc < testacc:
+        if best_acc < testacc and train_dataloader.dataset.__class__.__name__ == 'Kaggle':
             logger('Generate the result for sumbmission...')
             test_kaggle(args, model, train_dataloader.dataset.word2id)
         best_epoch = best_epoch if best_acc > testacc else i
@@ -166,12 +167,12 @@ def init_from_scrach(args):
     # test_dataset = MPQA(args, is_train = False)
     # train_dataset = SUBJ(args)
     # test_dataset = SUBJ(args, is_train = False)
-    train_dataset = TREC(args)
-    test_dataset = TREC(args, is_train = False)
+    # train_dataset = TREC(args)
+    # test_dataset = TREC(args, is_train = False)
     # train_dataset = Kaggle(args)
     # test_dataset = Kaggle(args, is_train = False)
-    # train_dataset = ImdbDataSet(args, num_words = args.num_words, skip_top = args.skip_top)
-    # test_dataset = ImdbDataSet(args, train = False, num_words = args.num_words, skip_top = args.skip_top)
+    train_dataset = ImdbDataSet(args, num_words = args.num_words, skip_top = args.skip_top)
+    test_dataset = ImdbDataSet(args, train = False, num_words = args.num_words, skip_top = args.skip_top)
 
     train_dataloader = DataLoader(dataset = train_dataset, batch_size = args.batch_size, shuffle = False,
                                   collate_fn = ImdbDataSet.batchfy_fn, pin_memory = True, drop_last = False)

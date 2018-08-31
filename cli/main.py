@@ -37,7 +37,7 @@ def main():
 
     group1.add_argument("--args_file", default = None, type = str, help = "json file of current args")
 
-    group1.add_argument("--print_every_n", default = 100, type = int, help = "print performance every n steps")
+    group1.add_argument("--print_every_n", default = 10, type = int, help = "print performance every n steps")
 
     group1.add_argument("--save_val", default = False, type = bool, help = "whether save the validation prediction result.")
 
