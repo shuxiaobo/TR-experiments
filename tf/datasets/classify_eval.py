@@ -23,32 +23,38 @@ class ClassifierEval():
         self.num_class = num_class
         self.max_len = 0  # will be update when load the train and test file
 
-        # load the train
-        self.train_x, self.train_y = self.load_file(os.path.join(self.args.tmp_dir, self.__class__.__name__, file_name + self.args.train_file))
-        sorted_corpus = sorted(zip(self.train_x, self.train_y),
-                               key = lambda z: (len(z[0]), z[1]))
-        self.train_x = [x for (x, y) in sorted_corpus]
-        self.train_y = [y for (x, y) in sorted_corpus]
+        self.train_x, self.train_y, self.test_x, self.test_y = self.load_data()
 
-        # load the test
-        self.test_x, self.test_y = self.load_file(os.path.join(self.args.tmp_dir, self.__class__.__name__, file_name + self.args.test_file))
-        sorted_corpus = sorted(zip(self.train_x, self.train_y),
-                               key = lambda z: (len(z[0]), z[1]))
-        self.test_x = [x for (x, y) in sorted_corpus]
-        self.test_y = [y for (x, y) in sorted_corpus]
-
+        train_max, train_mean, train_min = self.statistic_len(self.train_x)
+        test_max, test_mean, test_min = self.statistic_len(self.test_x)
+        self.max_len = max(train_max, test_max)
+        logger("Train data max len:%d, mean len:%d, min len:%d " % (train_max, train_mean, train_min))
+        logger("Test data max len:%d, mean len:%d, min len:%d " % (test_max, test_mean, test_min))
         self.valid_nums = 0
         self.train_nums = len(self.train_x)
         self.test_nums = len(self.test_x)
 
         # load the data word dict
-        self.word_file = os.path.join(args.tmp_dir, self.__class__.__name__, file_name + args.word_file)
-        if os.path.isfile(self.word_file) and os.path.getsize(self.word_file) > 0:
-            self.word2id = self.get_word_index(self.word_file)
-        else:
-            self.word2id = self.prepare_dict(self.word_file)
+        self.word2id, self.word_file = self.get_word_index(os.path.join(args.tmp_dir, self.__class__.__name__, file_name + args.word_file))
         self.word2id_size = len(self.word2id)
         self.train_idx = np.random.permutation(self.train_nums // self.args.batch_size)
+
+    def load_data(self):
+        # load the train
+        train_x, train_y = self.load_file(os.path.join(self.args.tmp_dir, self.__class__.__name__, file_name + self.args.train_file))
+        sorted_corpus = sorted(zip(train_x, train_y),
+                               key = lambda z: (len(z[0]), z[1]))
+        train_x = [x for (x, y) in sorted_corpus]
+        train_y = [y for (x, y) in sorted_corpus]
+
+        # load the test
+        test_x, test_y = self.load_file(os.path.join(self.args.tmp_dir, self.__class__.__name__, file_name + self.args.test_file))
+        sorted_corpus = sorted(zip(test_x, test_y),
+                               key = lambda z: (len(z[0]), z[1]))
+        test_x = [x for (x, y) in sorted_corpus]
+        test_y = [y for (x, y) in sorted_corpus]
+
+        return train_x, train_y, test_x, test_y
 
     @property
     def train_idx(self):
@@ -57,6 +63,12 @@ class ClassifierEval():
     @train_idx.setter
     def train_idx(self, value):
         self._train_idx = value
+
+    def statistic_len(self, data):
+        lens = [len(d) for d in data]
+        if len(lens) == 0:
+            return 0, 0, 0
+        return max(lens), sum(lens) / len(lens), min(lens)
 
     def shuffle(self):
         logger("Shuffle the dataset.")
@@ -72,7 +84,8 @@ class ClassifierEval():
                     continue
                 data_x.append(line[:-1])
                 data_y.append(int(line[-1]))
-                self.max_len = len(line[:-1]) if len(line[:-1]) > self.max_len else self.max_len
+                max_len = len(line[:-1]) if len(line[:-1]) > max_len else max_len
+        logger("Load the data over , size: %d. max length :%d" % (len(data_x), max_len))
         return data_x, data_y
 
     def prepare_dict(self, file_name):
@@ -84,12 +97,15 @@ class ClassifierEval():
     def get_word_index(self, path = None):
         if not path:
             path = self.args.tmp_dir + self.__class__.__name__ + self.args.word_file
-        word2id = dict()
-        with open(path, mode = 'r', encoding = 'utf-8') as f:
-            for l in f:
-                word2id.setdefault(l.strip(), len(word2id))
+        if os.path.isfile(path) and os.path.getsize(path) > 0:
+            word2id = dict()
+            with open(path, mode = 'r', encoding = 'utf-8') as f:
+                for l in f:
+                    word2id.setdefault(l.strip(), len(word2id))
+        else:
+            word2id = self.prepare_dict(path)
         logger('Word2id size : %d' % len(word2id))
-        return word2id
+        return word2id, path
 
     def getitem(self, dataset, index):
         result = [self.word2id[d] if self.word2id.get(d) else self.word2id['_<UNKNOW>'] for d in dataset[index]]
@@ -166,14 +182,14 @@ class MPQA(ClassifierEval):
 class Kaggle(ClassifierEval):
     def __init__(self, args, seed = 1111):
         logging.debug('***** Transfer task : Kaggle *****\n\n')
-        super(Kaggle, self).__init__(args, num_class = 5, seed = seed)
+        super(self.__class__, self).__init__(args, num_class = 5, seed = seed)
 
 
 class TREC(ClassifierEval):
     def __init__(self, args, seed = 1111):
         logging.info('***** Transfer task : TREC *****\n\n')
         self.seed = seed
-        super(TREC, self).__init__(args = args, num_class = 6, seed = seed)
+        super(self.__class__, self).__init__(args = args, num_class = 6, seed = seed)
 
 
 class SST(ClassifierEval):
@@ -182,9 +198,8 @@ class SST(ClassifierEval):
 
         # binary of fine-grained
         assert nclasses in [2, 5]
-        self.nclasses = nclasses
         self.task_name = 'Binary' if self.nclasses == 2 else 'Fine-Grained'
         logging.debug('***** Transfer task : SST %s classification *****\n\n', self.task_name)
 
         tmp = 'binary/' if nclasses == 2 else 'fine/'
-        super(SST, self).__init__(args, num_class = nclasses, file_name = tmp, seed = seed)
+        super(self.__class__, self).__init__(args, num_class = nclasses, file_name = tmp, seed = seed)

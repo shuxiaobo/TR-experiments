@@ -101,7 +101,7 @@ class NLPBase(object):
         group2 = parser.add_argument_group("2.Data specific options")
         # noinspection PyUnresolvedReferences
         import tf.datasets
-        group2.add_argument("--dataset", default = "SST", choices = sys.modules['tf.datasets'].__all__, type = str,
+        group2.add_argument("--dataset", default = "IMDB", choices = sys.modules['tf.datasets'].__all__, type = str,
                             help = 'type of the dataset to load')
 
         group2.add_argument("--embedding_file", default = "data/glove.6B/glove.6B.100d.txt",
@@ -146,7 +146,7 @@ class NLPBase(object):
 
         group3.add_argument("--grad_clipping", default = 0, type = int, help = "the threshold value of gradient clip")
 
-        group3.add_argument("--lr", default = 0.02, type = float, help = "learning rate")
+        group3.add_argument("--lr", default = 2e-1, type = float, help = "learning rate")
 
         group3.add_argument("--keep_prob", default = 0.5, type = float, help = "dropout,percentage to keep during training")
 

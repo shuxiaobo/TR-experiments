@@ -9,7 +9,7 @@ from tf.base import nlp_base
 import os
 
 
-# os.environ["CUDA_VISIBLE_DEVICES"] = "2" # Note: if set "0,1,2,3" and the #1 GPU is using, will cause OOM Error
+os.environ["CUDA_VISIBLE_DEVICES"] = "0" # Note: if set "0,1,2,3" and the #1 GPU is using, will cause OOM Error
 
 def get_model_class(model_name):
     if len(sys.argv) > 1:

@@ -2,65 +2,56 @@
 # -*- coding: utf-8 -*-
 # Created by ShaneSue on 2018/8/6
 from __future__ import absolute_import
-import json
-import numpy as np
-from six.moves import zip  # pylint: disable=redefined-builtin
-from tensorflow.python.keras._impl.keras.utils.data_utils import get_file
-from tensorflow.contrib.keras.api.keras.preprocessing import sequence
-from torch.utils.data import Dataset
-import logging
 import os
+import json
+import logging
+import numpy as np
+from tf.datasets.classify_eval import ClassifierEval
+from six.moves import zip  # pylint: disable=redefined-builtin
+from tensorflow.contrib.keras.api.keras.preprocessing import sequence
+from tensorflow.python.keras._impl.keras.utils.data_utils import get_file
 
 
-class IMDB(Dataset):
-    def __init__(self, args, train = True,
-                 num_words = None,
-                 skip_top = 0,
-                 maxlen = None,
-                 start_char = 1,
-                 oov_char = 2,
-                 index_from = 3, num_class = 2):
-        self.args = args
-        (train_data_x, train_data_y), (test_data_x, test_data_y) = self.load_data(
-            path = os.getcwd() + '/' + self.args.tmp_dir + self.__class__.__name__ + '/imdb.npz',
-            num_words = num_words,
-            skip_top = skip_top, maxlen = maxlen, start_char = start_char,
-            oov_char = oov_char, index_from = index_from)
-        self.data_x = train_data_x if train else test_data_x
-        self.data_y = train_data_y if train else test_data_y
-        self.max_len = 1190
-        self.num_class = num_class
-        # sorted_corpus = sorted(zip(self.data_x, self.data_y),
-        #                        key = lambda z: (len(z[0]), z[1]))
-        # self.data_x = [x for (x, y) in sorted_corpus]
-        # self.data_y = [y for (x, y) in sorted_corpus]
+class IMDB(ClassifierEval):
+    def __init__(self, args):
+        logging.info('***** Transfer task : IMDB *****\n\n')
+        super(self.__class__, self).__init__(args = args, num_class = 2, seed = 1111)
+        # self.args = args
+        # (train_data_x, train_data_y), (test_data_x, test_data_y) = self.load_data(
+        #     path = os.path.join(os.getcwd(), self.args.tmp_dir, self.__class__.__name__, 'imdb.npz'),
+        #     num_words = num_words,
+        #     skip_top = skip_top, maxlen = maxlen, start_char = start_char,
+        #     oov_char = oov_char, index_from = index_from)
+        # self.train_x = train_data_x
+        # self.train_y = train_data_y
+        #
+        # self.test_x = test_data_x
+        # self.test_y = test_data_y
+        #
+        # self.max_len = 1190
+        # self.num_class = num_class
+        # # sorted_corpus = sorted(zip(self.data_x, self.data_y),
+        # #                        key = lambda z: (len(z[0]), z[1]))
+        # # self.data_x = [x for (x, y) in sorted_corpus]
+        # # self.data_y = [y for (x, y) in sorted_corpus]
+        #
+        # self.valid_nums = 0
+        # self.train_nums = len(self.train_x)
+        # self.test_nums = len(self.test_x)
+        #
+        # self.data_size = len(self.data_x)  # set by the sum-class
+        # self.word2id = self.get_word_index(os.path.join(os.getcwd(), self.args.tmp_dir, self.__class__.__name__, 'imdb_word_index.json'))
+        # self.word2id_size = len(self.word2id)
 
-        self.data_size = len(self.data_x)  # set by the sum-class
-        self.word2id = self.get_word_index(os.getcwd() + '/' + self.args.tmp_dir + self.__class__.__name__ + '/imdb_word_index.json')
-
-    def __getitem__(self, index):
-        return self.data_x[index], self.data_y[index]
-
-    def __len__(self):
-        return self.data_size
-
-    @staticmethod
-    def batchfy_fn(data):
-        x = [d[0] for d in data]
-        y = [d[1] for d in data]
-        max_len = max(map(len, x))
-        # if max_len % 5 != 0:
-        #     max_len += 5 - (max_len % 5)
-        return sequence.pad_sequences(x, maxlen = max_len, padding = 'post'), y
-
-    def load_data(self, path = 'imdb.npz',
-                  num_words = None,
-                  skip_top = 0,
-                  maxlen = None,
-                  seed = 113,
-                  start_char = 1,
-                  oov_char = 2,
-                  index_from = 3):
+    def load_data(self):
+        path = os.path.join(os.getcwd(), self.args.tmp_dir, self.__class__.__name__, 'imdb.npz')
+        num_words = None
+        skip_top = 0
+        maxlen = None
+        seed = 113
+        start_char = 1
+        oov_char = 2
+        index_from = 3
         path = get_file(
             path,
             cache_subdir = path,
@@ -127,13 +118,18 @@ class IMDB(Dataset):
 
         x_test = np.array(xs[len(x_train):])
         y_test = np.array(labels[len(x_train):])
-        return (x_train, y_train), (x_test, y_test)
+
+        return x_train, y_train, x_test, y_test
 
     def get_word_index(self, path = 'imdb_word_index.json'):
         logging.info('Load the dictionaries...')
+        path = os.path.join(os.getcwd(), self.args.tmp_dir, self.__class__.__name__, 'imdb_word_index.json')
         path = get_file(path, origin = 'https://s3.amazonaws.com/text-datasets/imdb_word_index.json')
         f = open(path)
         data = json.load(f)
+        data = {k: v + 2 for k, v in data.items()}
+        data.setdefault('_<PAD>', 0)
+        data.setdefault('_<UNKNOW>', 1)
         f.close()
         logging.info('Load the dictionaries, size : %d' % len(data))
-        return data
+        return data, path

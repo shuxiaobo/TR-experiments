@@ -12,7 +12,7 @@ import logging
 import os
 
 
-class ImdbDataSet(Dataset):
+class IMDB(Dataset):
     def __init__(self, args, train = True,
                  num_words = None,
                  skip_top = 0,

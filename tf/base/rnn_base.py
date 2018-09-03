@@ -51,23 +51,18 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
         else:
             raise NotImplementedError("Other Optimizer Not Implemented.-_-||")
 
-        # gradient clip
-
+        grad_vars = optimizer.compute_gradients(self.loss)
         if self.args.grad_clipping != 0:
-            with tf.name_scope('grad_clip'):
-                grad_vars = optimizer.compute_gradients(self.loss)
-                grad_vars = [
-                    (tf.clip_by_norm(grad, self.args.grad_clipping), var)
-                    if grad is not None else (grad, var)
-                    for grad, var in grad_vars]
-            # for g, v in grad_vars:
-            #     if g is not None:
-            #         tf.summary.histogram("{}/grad_histogram".format(v.name), g)
-            #         tf.summary.scalar("{}/grad/sparsity".format(v.name), tf.nn.zero_fraction(g))
+            grad_vars = [
+                (tf.clip_by_norm(grad, self.args.grad_clipping), var)
+                if grad is not None else (grad, var)
+                for grad, var in grad_vars]
+        for g, v in grad_vars:
+            if g is not None:
+                tf.summary.histogram("{}/grad_histogram".format(v.name), g)
+                tf.summary.scalar("{}/grad/sparsity".format(v.name), tf.nn.zero_fraction(g))
 
             self.train_op = optimizer.apply_gradients(grad_vars, self.step)
-        else:
-            self.train_op = optimizer.minimize(self.loss, self.step)
         return
 
     @abc.abstractmethod
@@ -98,6 +93,7 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
 
         self.saver = tf.train.Saver(max_to_keep = 20)
 
+        self.draw_graph()
         if self.args.train:
             self.train()
         if self.args.test:
@@ -106,9 +102,11 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
         self.sess.close()
 
     def draw_graph(self):
-        self.writer = tf.summary.FileWriter('../logs/log-bs%d-lr%d-model%s-emb%d-id%s' % (
-            self.args.batch_size, self.args.lr, self.__class__.__name__, self.args.embedding_dim, str(datetime.datetime.now())))
+        log_file = '../logs/log-av%s-%s-model%s-emb%d-id%s' % (
+            self.args.activation, self.args.dataset, self.__class__.__name__, self.args.embedding_dim, str(datetime.datetime.now()))
+        self.writer = tf.summary.FileWriter(log_file)
         self.writer.add_graph(self.sess.graph)
+        logger('Save log to %s' % log_file)
 
     def get_batch_data(self, mode, idx):
         """
@@ -145,8 +143,9 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
             if step % batch_num == 0:
                 corrects_in_epoch, samples_in_epoch, loss_in_epoch = 0, 0, 0
                 logger("{}Epoch : {}{}".format("-" * 40, step // batch_num + 1, "-" * 40))
-                self.dataset.shuffle()
+                # self.dataset.shuffle()
                 val_acc, val_loss = self.validate()
+                self.best_val_acc = max(self.best_val_acc, val_acc)
 
             data, samples = self.get_batch_data("train", step % batch_num)
             loss, _, corrects = self.sess.run([self.loss, self.train_op, self.correct_prediction],
@@ -162,6 +161,12 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
                     step % batch_num, batch_num,
                     loss_in_epoch / samples_in_epoch,
                     corrects_in_epoch / samples_in_epoch))
+                tf.summary.scalar('loss', loss_in_epoch / samples_in_epoch)
+                tf.summary.scalar('accuracy', corrects_in_epoch / samples_in_epoch)
+                merged_summary = tf.summary.merge_all()
+                s = self.sess.run(merged_summary, feed_dict = data)
+                self.writer.add_summary(s, step)
+                self.writer.flush()
 
             # evaluate on the valid set and early stopping
             # self.early_stopping(val_acc, val_loss, step)
@@ -184,10 +189,11 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
         assert (val_num == self.valid_nums)
         val_acc = val_corrects / val_num
         val_loss = v_loss / val_num
-        logger("Evaluate on : {}/{}.\tVal acc : {:.4f}.\tVal Loss : {:.4f}".format(val_num,
-                                                                                   self.valid_nums,
-                                                                                   val_acc,
-                                                                                   val_loss))
+        logger("Evaluate on : {}/{}.\tVal acc : {:.4f}.\tVal Loss : {:.4f}, Best acc:{:.4f}, , Dataset:{}, ".format(val_num,
+                                                                                                                    self.valid_nums,
+                                                                                                                    val_acc,
+                                                                                                                    val_loss, self.best_val_acc,
+                                                                                                                    self.args.dataset))
         return val_acc, val_loss
 
     # noinspection PyUnusedLocal
