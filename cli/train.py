@@ -5,6 +5,7 @@ from __future__ import absolute_import
 import torch
 import time
 import logging
+import datetime
 import numpy as np
 from datasets.binary import *
 from datasets.snli import SNLI
@@ -12,7 +13,7 @@ from utils.util import accuracy
 from model.model1 import NGramRNN
 from model.model2 import NGramRNN2
 from model.model3 import NGramRNN3
-from datasets.imdb import ImdbDataSet
+from datasets.imdb import IMDB
 from model.baseline import BaseLineRNN
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader
@@ -26,7 +27,8 @@ def train(args):
     best_epoch = 0
     iter = 0
     logger('Begin training...')
-    logger_path = os.path.join(args.log_dir, time.strftime('%Y%m%d_%H:%M:%S'))
+    logger_path = '../logs/log-av%s-%s-model%s-emb%d-id%s' % (
+        args.activation, args.dataset, model.rnn.__class__.__name__, args.embedding_dim, str(datetime.datetime.now()))
     logger('Save log to %s' % logger_path)
     writer = SummaryWriter(log_dir = logger_path)
     for i in range(args.num_epoches):
@@ -36,6 +38,7 @@ def train(args):
         for j, a_data in enumerate(train_dataloader):
             iter += 1
             model.optimizer.zero_grad()
+            model.zero_grad()
             out, feature = model(*a_data)
             loss = model.loss(out, a_data[-1])
             loss.backward()
@@ -157,30 +160,38 @@ def init_from_scrach(args):
     logging.info('No trained model provided. init model from scratch...')
 
     logging.info('Load the train dataset...')
-    # train_dataset = CR(args)
-    # test_dataset = CR(args, is_train = False)
-    # train_dataset = MR(args)
-    # test_dataset = MR(args, is_train = False)
-    # train_dataset = SST(args, nclasses = 2)
-    # test_dataset = SST(args, is_train = False, nclasses = 2)
-    # train_dataset = MPQA(args)
-    # test_dataset = MPQA(args, is_train = False)
-    # train_dataset = SUBJ(args)
-    # test_dataset = SUBJ(args, is_train = False)
-    # train_dataset = TREC(args)
-    # test_dataset = TREC(args, is_train = False)
-    # train_dataset = Kaggle(args)
-    # test_dataset = Kaggle(args, is_train = False)
-    train_dataset = ImdbDataSet(args, num_words = args.num_words, skip_top = args.skip_top)
-    test_dataset = ImdbDataSet(args, train = False, num_words = args.num_words, skip_top = args.skip_top)
+    if args.dataset.lower() == 'cr':
+        train_dataset = CR(args)
+        test_dataset = CR(args, is_train = False)
+    elif args.dataset.lower() == 'mr':
+        train_dataset = MR(args)
+        test_dataset = MR(args, is_train = False)
+    elif args.dataset.lower() == 'sst':
+        train_dataset = SST(args, nclasses = 2)
+        test_dataset = SST(args, is_train = False, nclasses = 2)
+    elif args.dataset.lower() == 'mpqa':
+        train_dataset = MPQA(args)
+        test_dataset = MPQA(args, is_train = False)
+    elif args.dataset.lower() == 'subj':
+        train_dataset = SUBJ(args)
+        test_dataset = SUBJ(args, is_train = False)
+    elif args.dataset.lower() == 'trec':
+        train_dataset = TREC(args)
+        test_dataset = TREC(args, is_train = False)
+    elif args.dataset.lower() == 'kaggle':
+        train_dataset = Kaggle(args)
+        test_dataset = Kaggle(args, is_train = False)
+    elif args.dataset.lower() == 'imdb':
+        train_dataset = IMDB(args, num_words = args.num_words, skip_top = args.skip_top)
+        test_dataset = IMDB(args, train = False, num_words = args.num_words, skip_top = args.skip_top)
 
     train_dataloader = DataLoader(dataset = train_dataset, batch_size = args.batch_size, shuffle = False,
-                                  collate_fn = ImdbDataSet.batchfy_fn, pin_memory = True, drop_last = False)
+                                  collate_fn = IMDB.batchfy_fn, pin_memory = True, drop_last = False)
     logging.info('Train data max length : %d' % train_dataset.max_len)
 
     logging.info('Load the test dataset...')
     test_dataloader = DataLoader(dataset = test_dataset, batch_size = args.batch_size, shuffle = False,
-                                 collate_fn = ImdbDataSet.batchfy_fn, pin_memory = True, drop_last = False)
+                                 collate_fn = IMDB.batchfy_fn, pin_memory = True, drop_last = False)
     logging.info('Test data max length : %d' % test_dataset.max_len)
 
     logging.info('Initiating the model...')

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Created by ShaneSue on 2018/8/31
+# Created bRy ShaneSue on 2018/8/31
 import sys
 import os
 
@@ -8,8 +8,8 @@ sys.path.append(os.getcwd() + '/..')
 from tf.base import nlp_base
 import os
 
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"  # Note: if set "0,1,2,3" and the #1 GPU is using, will cause OOM Error
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0" # Note: if set "0,1,2,3" and the #1 GPU is using, will cause OOM Error
 
 def get_model_class(model_name):
     if len(sys.argv) > 1:
@@ -30,5 +30,5 @@ def get_model_class(model_name):
 
 if __name__ == '__main__':
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
-    model = get_model_class('ModifiedRNN')
+    model = get_model_class('QA')
     model.execute()

@@ -13,12 +13,6 @@ from tensorflow.contrib.rnn import MultiRNNCell
 
 class ModifiedRNN(ModelBase):
 
-    def add_args(self, parser):
-        """
-        If some model need more arguments, override this method.
-        """
-        parser.add_argument("--activation", default = 'sin', type = str, help = "activation for rnn")
-
     def create_model(self):
         RECURRENT_MAX_ABS = pow(2, 1 / self.max_len)
         x = tf.placeholder(name = 'document', shape = [None, self.max_len], dtype = tf.int32)
@@ -30,27 +24,14 @@ class ModifiedRNN(ModelBase):
 
         doc_lens = tf.reduce_sum(tf.sign(tf.abs(x)), axis = -1)
 
-        if self.args.activation == 'sigmoid':
-            activation = math_ops.sigmoid
-        elif self.args.activation == 'relu':
-            activation = nn_ops.relu
-        elif self.args.activation == 'tanh':
-            activation = math_ops.tanh
-        elif self.args.activation == 'log':
-            activation = math_ops.log
-        elif self.args.activation == 'sin':
-            activation = math_ops.sin
-        elif self.args.activation == 'none':
-            activation = lambda yy: yy
-
         with tf.variable_scope('encoder') as s:
             x_emb = tf.nn.embedding_lookup(params = embedding, ids = x)
 
             if self.args.bidirectional:
                 cell_fw = MultiRNNCell([
-                    ModifiedRNNCell(num_units = self.args.hidden_size, activation = activation) for _ in range(self.args.num_layers)])
+                    ModifiedRNNCell(num_units = self.args.hidden_size, activation = self.args.activation) for _ in range(self.args.num_layers)])
                 cell_bw = MultiRNNCell([
-                    ModifiedRNNCell(num_units = self.args.hidden_size, activation = activation) for _ in range(self.args.num_layers)])
+                    ModifiedRNNCell(num_units = self.args.hidden_size, activation = self.args.activation) for _ in range(self.args.num_layers)])
                 # fw_initializer = tf.random_normal_initializer(-RECURRENT_MAX_ABS, RECURRENT_MAX_ABS)
                 # bw_initializer = tf.random_normal_initializer(-RECURRENT_MAX_ABS, RECURRENT_MAX_ABS)
                 # cell_fw = MultiRNNCell([

@@ -7,7 +7,6 @@ import os
 import time
 import torch
 import numpy as np
-from datasets.imdb import ImdbDataSet
 from model.model1 import NGramRNN
 from model.model2 import NGramRNN2
 from model.model3 import NGramRNN3

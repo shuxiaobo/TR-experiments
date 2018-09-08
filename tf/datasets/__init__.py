@@ -4,5 +4,6 @@
 from __future__ import absolute_import
 from .classify_eval import *
 from .imdb import IMDB
+from tf.datasets.qa import AIC
 
-__all__ = ["CR", "MR", "SUBJ", "MPQA", "Kaggle", "SST", "IMDB"]
+__all__ = ["CR", "MR", "SUBJ", "MPQA", "Kaggle", "SST", "IMDB", "AIC"]

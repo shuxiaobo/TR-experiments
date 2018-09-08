@@ -62,7 +62,7 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
                 tf.summary.histogram("{}/grad_histogram".format(v.name), g)
                 tf.summary.scalar("{}/grad/sparsity".format(v.name), tf.nn.zero_fraction(g))
 
-            self.train_op = optimizer.apply_gradients(grad_vars, self.step)
+        self.train_op = optimizer.apply_gradients(grad_vars, self.step)
         return
 
     @abc.abstractmethod
@@ -140,19 +140,12 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
 
             step = self.sess.run(self.step)
             # on Epoch start
-            if step % batch_num == 0:
-                corrects_in_epoch, samples_in_epoch, loss_in_epoch = 0, 0, 0
-                logger("{}Epoch : {}{}".format("-" * 40, step // batch_num + 1, "-" * 40))
-                # self.dataset.shuffle()
-                val_acc, val_loss = self.validate()
-                self.best_val_acc = max(self.best_val_acc, val_acc)
-
             data, samples = self.get_batch_data("train", step % batch_num)
             loss, _, corrects = self.sess.run([self.loss, self.train_op, self.correct_prediction],
                                               feed_dict = data)
             corrects_in_epoch += corrects.item()
-            loss_in_epoch += loss * samples
-            samples_in_epoch += samples
+            loss_in_epoch += loss * samples.item()
+            samples_in_epoch += samples.item()
 
             # logger self.sess.run([self.result_s,self.result_e],data)
             if step % self.args.print_every_n == 0:
@@ -167,7 +160,13 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
                 s = self.sess.run(merged_summary, feed_dict = data)
                 self.writer.add_summary(s, step)
                 self.writer.flush()
-
+            if step % batch_num == 0:
+                corrects_in_epoch, samples_in_epoch, loss_in_epoch = 0, 0, 0
+                logger("{}Epoch : {}{}".format("-" * 40, step // batch_num + 1, "-" * 40))
+                # self.dataset.shuffle()
+            if step and step % batch_num == 0:
+                val_acc, val_loss = self.validate()
+                self.best_val_acc = max(self.best_val_acc, val_acc)
             # evaluate on the valid set and early stopping
             # self.early_stopping(val_acc, val_loss, step)
 
@@ -182,7 +181,10 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
         for i in range(v_batch_num):
             data, samples = self.get_batch_data("test", i)
             if samples != 0:
-                loss, v_correct = self.sess.run([self.loss, self.correct_prediction], feed_dict = data)
+                try:
+                    loss, v_correct = self.sess.run([self.loss, self.correct_prediction], feed_dict = data)
+                except:
+                    print(len(data[-1]))
                 val_num += samples
                 val_corrects += v_correct
                 v_loss += loss * samples

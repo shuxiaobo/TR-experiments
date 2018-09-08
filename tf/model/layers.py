@@ -104,8 +104,8 @@ class ModifiedRNNCell(LayerRNNCell):
     def __init__(self, num_units, activation = nn_ops.relu, bias = False, reuse = None, name = None):
         super(ModifiedRNNCell, self).__init__(_reuse = reuse, name = name)
         self._num_units = num_units
-        self._activation = activation
         self.bias = bias
+        self._activation = activation
 
     @property
     def state_size(self):
@@ -119,10 +119,10 @@ class ModifiedRNNCell(LayerRNNCell):
         if inputs_shape[1].value is None:
             raise ValueError("Expected inputs.shape[-1] to be known, saw shape: %s"
                              % inputs_shape)
-        init_ih = init_ops.random_uniform_initializer
+        init_ih = init_ops.identity_initializer
         self._ih = tf.get_variable(name = 'ih', shape = [inputs_shape[1], self.state_size], initializer = init_ih)
 
-        init_hh = init_ops.random_uniform_initializer
+        init_hh = init_ops.identity_initializer
         self._hh = tf.get_variable(name = 'hh', shape = [self.state_size, inputs_shape[1]], initializer = init_hh)
 
         if self.bias:

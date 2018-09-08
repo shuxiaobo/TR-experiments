@@ -23,7 +23,7 @@ class ClassifierEval():
         self.num_class = num_class
         self.max_len = 0  # will be update when load the train and test file
 
-        self.train_x, self.train_y, self.test_x, self.test_y = self.load_data()
+        self.train_x, self.train_y, self.test_x, self.test_y = self.load_data(file_name)
 
         train_max, train_mean, train_min = self.statistic_len(self.train_x)
         test_max, test_mean, test_min = self.statistic_len(self.test_x)
@@ -35,11 +35,12 @@ class ClassifierEval():
         self.test_nums = len(self.test_x)
 
         # load the data word dict
-        self.word2id, self.word_file = self.get_word_index(os.path.join(args.tmp_dir, self.__class__.__name__, file_name + args.word_file))
+        self.word2id, self.word_file = self.get_word_index(
+            os.path.join(args.tmp_dir, self.__class__.__name__, file_name + args.word_file), exclude_n = self.args.skip_top, max_size = self.args.num_words)
         self.word2id_size = len(self.word2id)
         self.train_idx = np.random.permutation(self.train_nums // self.args.batch_size)
 
-    def load_data(self):
+    def load_data(self, file_name = ''):
         # load the train
         train_x, train_y = self.load_file(os.path.join(self.args.tmp_dir, self.__class__.__name__, file_name + self.args.train_file))
         sorted_corpus = sorted(zip(train_x, train_y),
@@ -75,6 +76,7 @@ class ClassifierEval():
         np.random.shuffle(self.train_idx)
 
     def load_file(self, fpath):
+        max_len = 0
         with io.open(fpath, 'r', encoding = 'utf-8') as f:
             data_x = list()
             data_y = list()
@@ -88,13 +90,13 @@ class ClassifierEval():
         logger("Load the data over , size: %d. max length :%d" % (len(data_x), max_len))
         return data_x, data_y
 
-    def prepare_dict(self, file_name):
+    def prepare_dict(self, file_name, exclude_n = 10, max_size = 10000):
         logger("Prepare the dictionary for the {}...".format(self.__class__.__name__))
-        word2id = prepare_dictionary(data = self.data_x, dict_path = file_name, exclude_n = self.args.skip_top, max_size = self.args.num_words)
+        word2id = prepare_dictionary(data = self.train_x + self.test_x, dict_path = file_name, exclude_n = exclude_n, max_size = max_size)
         logger("Word2id size : %d" % len(word2id))
         return word2id
 
-    def get_word_index(self, path = None):
+    def get_word_index(self, path = None, exclude_n = 10, max_size = 10000):
         if not path:
             path = self.args.tmp_dir + self.__class__.__name__ + self.args.word_file
         if os.path.isfile(path) and os.path.getsize(path) > 0:
@@ -103,7 +105,7 @@ class ClassifierEval():
                 for l in f:
                     word2id.setdefault(l.strip(), len(word2id))
         else:
-            word2id = self.prepare_dict(path)
+            word2id = self.prepare_dict(path, exclude_n = exclude_n, max_size = max_size)
         logger('Word2id size : %d' % len(word2id))
         return word2id, path
 
@@ -115,7 +117,7 @@ class ClassifierEval():
         return self.n_samples
 
     def data_split(self, args):
-        trainx, trainy, testx, testy = prepare_split(self.train_data_x, self.train_data_y, validation_split = 0.2)
+        trainx, trainy, testx, testy = prepare_split(self.train_x, self.train_y, validation_split = 0.2)
         train = [x + [str(y)] for x, y in zip(trainx, trainy)]
         test = [x + [str(y)] for x, y in zip(testx, testy)]
         write_file(data = train, path = os.path.join(args.tmp_dir, self.__class__.__name__, args.train_file))

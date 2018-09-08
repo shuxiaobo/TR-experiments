@@ -12,7 +12,7 @@ from tensorflow.contrib.keras.api.keras.preprocessing import sequence
 from utils.util import logger
 
 
-class BinaryClassifierEval():
+class BinaryClassifierEval(Dataset):
     def __init__(self, args, is_train = True, num_class = 2, seed = 1111, file_name = ''):
         self.seed = seed
         self.args = args
@@ -74,6 +74,13 @@ class BinaryClassifierEval():
         y = [d[1] for d in data]
         max_len = max(map(len, x))
         return sequence.pad_sequences(x, maxlen = max_len, padding = 'post'), y
+
+    def __getitem__(self, index):
+        result = [self.word2id[d] if self.word2id.get(d) else self.word2id['_<UNKNOW>'] for d in self.data_x[index]]
+        return result, self.data_y[index]
+
+    def __len__(self):
+        return self.n_samples
 
 
 class CR(BinaryClassifierEval):

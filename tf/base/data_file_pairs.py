@@ -56,5 +56,10 @@ dataset_files_pairs = {
         "../data/TREC",
         "train.txt",
         "",
-        "test.txt"]
+        "test.txt"],
+    "AIC": [
+        "../data/AIC",
+        "train.json",
+        "",
+        "test.json"]
 }

@@ -5,12 +5,13 @@
 import torch
 from model.base_model import BaseModel
 
+import math
 import torch
-from torch.nn import Parameter
+import numpy as np
 import torch.nn as nn
+from torch.nn import Parameter
 import torch.nn.functional as F
 from torch.autograd import Variable
-import math
 
 
 class BaseRNNCell(nn.Module):
@@ -36,36 +37,44 @@ class BaseRNNCell(nn.Module):
             self.activation = F.sigmoid
         elif self.nonlinearity == "log":
             self.activation = torch.log
+        elif self.nonlinearity == "sin":
+            self.activation = torch.sin
         else:
             raise RuntimeError(
                 "Unknown nonlinearity: {}".format(self.nonlinearity))
 
         self.weight_ih = Parameter(torch.eye(hidden_size, input_size))
-        self.weight_hh = Parameter(torch.eye(hidden_size, 20))
+        self.weight_hh = Parameter(torch.Tensor(hidden_size, 20).uniform_())
         self.weight_hh1 = Parameter(torch.eye(input_size, hidden_size))
         if bias:
             self.bias_ih = Parameter(torch.randn(hidden_size))
         else:
             self.register_parameter('bias_ih', None)
+        self.reset_parameters()
 
     def reset_parameters(self):
-        for name, weight in self.named_parameters():
-            if "bias" in name:
-                weight.data.zero_()
-            elif "weight_hh" in name:
-                if self.recurrent_init is None:
-                    nn.init.constant_(weight, 1)
-                else:
-                    self.recurrent_init(weight)
-            elif "weight_ih" in name:
-                if self.hidden_init is None:
-                    nn.init.normal_(weight, 0, 0.01)
-                else:
-                    self.hidden_init(weight)
-            else:
-                weight.data.normal_(0, 0.01)
-                # weight.data.uniform_(-stdv, stdv)
-        self.check_bounds()
+        stdv = 1.0 / math.sqrt(self.hidden_size)
+        for weight in self.parameters():
+            weight.data.uniform_(-stdv, stdv)
+
+    # def reset_parameters(self):
+    #     for name, weight in self.named_parameters():
+    #         if "bias" in name:
+    #             weight.data.zero_()
+    #         elif "weight_hh" in name:
+    #             if self.recurrent_init is None:
+    #                 nn.init.constant_(weight, 1)
+    #             else:
+    #                 self.recurrent_init(weight)
+    #         elif "weight_ih" in name:
+    #             if self.hidden_init is None:
+    #                 nn.init.normal_(weight, 0, 0.01)
+    #             else:
+    #                 self.hidden_init(weight)
+    #         else:
+    #             weight.data.normal_(0, 0.01)
+    #             # weight.data.uniform_(-stdv, stdv)
+    #     self.check_bounds()
 
     def check_bounds(self):
         if self.hidden_min_abs:
@@ -147,9 +156,11 @@ class BaseRNN(BaseModel):
                 hiddens = []
                 x_T = torch.unbind(x, time_index)
                 if dir == 1:
-                    x_T = reversed(x_T)
+                    x_T = list(reversed(x_T))
                 for k, x_t in enumerate(x_T):
                     hx_cell = cell(x_t, hx_cell)
+                    if k % 2 == 0 and k != 0:
+                        hx_cell = hx_cell + x_T[k - 2]
                     if self.truncate and k % 3 == 0:
                         hx_cell = hx_cell.detach()
                     outputs.append(hx_cell)

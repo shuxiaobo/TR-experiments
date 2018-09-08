@@ -77,7 +77,7 @@ def main():
 
     group3.add_argument("--hidden_size", default = 100, type = int, help = "RNN hidden size")
 
-    group3.add_argument("--embedding_dim", default = 300, type = int, help = "dimension of word embeddings")
+    group3.add_argument("--embedding_dim", default = 100, type = int, help = "dimension of word embeddings")
 
     group3.add_argument("--grad_clipping", default = 0, type = int, help = "the threshold value of gradient clip")
 
@@ -100,7 +100,9 @@ def main():
 
     group4.add_argument('--num_layers', default = 1, type = int, help = 'number of layers')
 
-    group4.add_argument('--activation', default = 'sigmoid', type = str, help = 'activation function for RNN ')
+    group4.add_argument('--activation', default = 'relu', type = str, help = 'activation function for RNN ')
+
+    group4.add_argument('--dataset', default = 'CR', type = str, help = 'activation function for RNN ')
 
     args = parser.parse_args()
 

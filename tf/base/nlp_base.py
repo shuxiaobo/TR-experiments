@@ -101,13 +101,15 @@ class NLPBase(object):
         group2 = parser.add_argument_group("2.Data specific options")
         # noinspection PyUnresolvedReferences
         import tf.datasets
-        group2.add_argument("--dataset", default = "IMDB", choices = sys.modules['tf.datasets'].__all__, type = str,
+        group2.add_argument("--dataset", default = "AIC", choices = sys.modules['tf.datasets'].__all__, type = str,
                             help = 'type of the dataset to load')
 
         group2.add_argument("--embedding_file", default = "data/glove.6B/glove.6B.100d.txt",
                             type = str_or_none, help = "pre-trained embedding file")
 
-        group2.add_argument("--max_vocab_num", default = 100000, type = int, help = "the max number of words in vocabulary")
+        group2.add_argument("--num_words", default = 15000, type = int, help = "the max number of words in vocabulary")
+
+        group2.add_argument("--skip_top", default = 20, type = int, help = "the max number of words in vocabulary")
 
         subgroup = group2.add_argument_group("Some default options related to dataset, don't change if it works")
 
@@ -146,18 +148,18 @@ class NLPBase(object):
 
         group3.add_argument("--grad_clipping", default = 0, type = int, help = "the threshold value of gradient clip")
 
-        group3.add_argument("--lr", default = 2e-1, type = float, help = "learning rate")
+        group3.add_argument("--lr", default = 2e-4, type = float, help = "learning rate")
 
         group3.add_argument("--keep_prob", default = 0.5, type = float, help = "dropout,percentage to keep during training")
 
         group3.add_argument("--l2", default = 0.005, type = float, help = "l2 regularization weight")
 
-        group3.add_argument("--num_layers", default = 1, type = int, help = "RNN layer number")
+        group3.add_argument("--num_layers", default =1, type = int, help = "RNN layer number")
 
-        group3.add_argument("--use_lstm", default = True, type = str2bool,
-                            help = "RNN kind, if False, use GRU else LSTM")
+        group3.add_argument("--rnn_type", default = "gru", type = str_or_none,
+                            help = "RNN type, use GRU, LSTM, vanilla rnn, modified rnn, indrnn")
 
-        group3.add_argument("--batch_size", default = 32, type = int, help = "batch_size")
+        group3.add_argument("--batch_size", default = 256, type = int, help = "batch_size")
 
         group3.add_argument("--bidirectional", default = 'true', type = str2bool, help = "whether bidirectional for rnn")
 
@@ -173,6 +175,7 @@ class NLPBase(object):
         # -----------------------------------------------------------------------------------------------------------
         group4 = parser.add_argument_group("4.model [{}] specific parameters".format(self.model_name))
 
+        group4.add_argument("--activation", default = 'relu', type = str, help = "activation for rnn")
         self.add_args(group4)
 
         args = parser.parse_args()
@@ -186,7 +189,7 @@ class NLPBase(object):
         args.evaluate_every_n = 5 if args.debug else args.evaluate_every_n
         args.num_epoches = 2 if args.debug else args.num_epoches
 
-        # args = self.tune_args(args)
+        args = self.tune_args(args)
 
         return args
 
