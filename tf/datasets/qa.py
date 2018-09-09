@@ -20,6 +20,8 @@ from utils.util import logger, prepare_split, write_file
 def default_tokenizer(sentence):
     _DIGIT_RE = re.compile(r"\d+")
     sentence = _DIGIT_RE.sub("0", sentence)  # No digital replace. because the answer contain the number
+    _DIGIT_RE = re.compile(r"^[A-Za-z]+$")
+    sentence = _DIGIT_RE.sub("a", sentence)  # No digital replace. because the answer contain the number
     # sentence = " ".join(sentence.split("|"))
     return list(jieba.cut(sentence))
 
@@ -211,7 +213,6 @@ class QADataSetBase():
         data = self.train_x[0] + self.train_x[1]  # use passage words and query words
         word2id = {self._PAD: self._PAD_ID, self._UNKOWN: self._UNKOWN_ID}
         word2id = QADataSetBase.gen_dictionary(data = data, word2id = word2id, dict_path = file_name, exclude_n = exclude_n, max_size = max_size)
-        logger("Word2id size : %d" % len(word2id))
         return word2id
 
     @staticmethod
@@ -238,11 +239,15 @@ class QADataSetBase():
         if os.path.isfile(path) and os.path.getsize(path) > 0:
             word2id = {self._PAD: self._PAD_ID, self._UNKOWN: self._UNKOWN_ID}
             with open(path, mode = 'r', encoding = 'utf-8') as f:
-                for l in f.readlines()[exclude_n: max_size + exclude_n]:
+                for i in range(exclude_n): f.readline()
+                for i in range(exclude_n, max_size + exclude_n):
+                    l = f.readline()
                     word2id.setdefault(l.strip(), len(word2id))
+                # for l in f.readlines()[exclude_n: max_size + exclude_n]:
+                #     word2id.setdefault(l.strip(), len(word2id))
         else:
             word2id = self.prepare_dict(path, exclude_n = exclude_n, max_size = max_size)
-            logger('Word2id size : %d' % len(word2id))
+        logger('Word2id size : %d' % len(word2id))
         return word2id, path
 
     def getitem(self, dataset, index):

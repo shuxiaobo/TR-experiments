@@ -107,9 +107,9 @@ class NLPBase(object):
         group2.add_argument("--embedding_file", default = "data/glove.6B/glove.6B.100d.txt",
                             type = str_or_none, help = "pre-trained embedding file")
 
-        group2.add_argument("--num_words", default = 15000, type = int, help = "the max number of words in vocabulary")
+        group2.add_argument("--num_words", default = 20000, type = int, help = "the max number of words in vocabulary")
 
-        group2.add_argument("--skip_top", default = 20, type = int, help = "the max number of words in vocabulary")
+        group2.add_argument("--skip_top", default = 10, type = int, help = "the max number of words in vocabulary")
 
         subgroup = group2.add_argument_group("Some default options related to dataset, don't change if it works")
 
@@ -150,7 +150,7 @@ class NLPBase(object):
 
         group3.add_argument("--lr", default = 1e-4, type = float, help = "learning rate")
 
-        group3.add_argument("--keep_prob", default = 0.5, type = float, help = "dropout,percentage to keep during training")
+        group3.add_argument("--keep_prob", default = 0.8, type = float, help = "dropout,percentage to keep during training")
 
         group3.add_argument("--l2", default = 0.005, type = float, help = "l2 regularization weight")
 

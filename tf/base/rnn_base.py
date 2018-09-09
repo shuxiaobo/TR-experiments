@@ -105,7 +105,7 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
         log_file = '../logs/log-%s-%s-%s-emb%d-id%s' % (
             self.args.activation, self.args.dataset, self.args.rnn_type, self.args.embedding_dim, str(datetime.datetime.now()))
         self.writer = tf.summary.FileWriter(log_file)
-        # self.writer.add_graph(self.sess.graph)
+        self.writer.add_graph(self.sess.graph)
         tf.summary.scalar('loss', self.loss)
         tf.summary.scalar('accuracy', self.accuracy)
         logger('Save log to %s' % log_file)
@@ -170,7 +170,7 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
                 val_acc, val_loss = self.validate()
                 self.best_val_acc = max(self.best_val_acc, val_acc)
             # evaluate on the valid set and early stopping
-            # self.early_stopping(val_acc, val_loss, step)
+                self.early_stopping(val_acc, val_loss, step)
 
     def validate(self):
         batch_size = self.args.batch_size
