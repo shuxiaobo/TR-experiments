@@ -23,16 +23,16 @@ class ClassifierEval():
         self.num_class = num_class
         self.max_len = 0  # will be update when load the train and test file
 
-        self.train_x, self.train_y, self.test_x, self.test_y = self.load_data(file_name)
+        self.train_x, self.train_y, self.valid_x, self.valid_y, self.test_x, self.test_y = self.load_data(file_name)
 
         train_max, train_mean, train_min = self.statistic_len(self.train_x)
-        test_max, test_mean, test_min = self.statistic_len(self.test_x)
-        self.max_len = max(train_max, test_max)
+        valid_max, valid_mean, valid_min = self.statistic_len(self.valid_x)
+        self.max_len = max(train_max, valid_max)
         logger("Train data max len:%d, mean len:%d, min len:%d " % (train_max, train_mean, train_min))
-        logger("Test data max len:%d, mean len:%d, min len:%d " % (test_max, test_mean, test_min))
-        self.valid_nums = 0
+        logger("Test data max len:%d, mean len:%d, min len:%d " % (valid_max, valid_mean, valid_min))
+        self.valid_nums = len(self.valid_x)
         self.train_nums = len(self.train_x)
-        self.test_nums = len(self.test_x)
+        self.test_nums = 0
 
         # load the data word dict
         self.word2id, self.word_file = self.get_word_index(
@@ -48,14 +48,14 @@ class ClassifierEval():
         train_x = [x for (x, y) in sorted_corpus]
         train_y = [y for (x, y) in sorted_corpus]
 
-        # load the test
-        test_x, test_y = self.load_file(os.path.join(self.args.tmp_dir, self.__class__.__name__, file_name + self.args.test_file))
-        sorted_corpus = sorted(zip(test_x, test_y),
+        # load the valid
+        valid_x, valid_y = self.load_file(os.path.join(self.args.tmp_dir, self.__class__.__name__, file_name + self.args.valid_file))
+        sorted_corpus = sorted(zip(valid_x, valid_y),
                                key = lambda z: (len(z[0]), z[1]))
-        test_x = [x for (x, y) in sorted_corpus]
-        test_y = [y for (x, y) in sorted_corpus]
+        valid_x = [x for (x, y) in sorted_corpus]
+        valid_y = [y for (x, y) in sorted_corpus]
 
-        return train_x, train_y, test_x, test_y
+        return train_x, train_y, valid_x, valid_y, None, None
 
     @property
     def train_idx(self):
@@ -92,7 +92,7 @@ class ClassifierEval():
 
     def prepare_dict(self, file_name, exclude_n = 10, max_size = 10000):
         logger("Prepare the dictionary for the {}...".format(self.__class__.__name__))
-        word2id = prepare_dictionary(data = self.train_x + self.test_x, dict_path = file_name, exclude_n = exclude_n, max_size = max_size)
+        word2id = prepare_dictionary(data = self.train_x + self.valid_x, dict_path = file_name, exclude_n = exclude_n, max_size = max_size)
         logger("Word2id size : %d" % len(word2id))
         return word2id
 

@@ -22,7 +22,7 @@ class NLPBase(object):
         self.model_name = self.__class__.__name__
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
-        # config.gpu_options.per_process_gpu_memory_fraction = 0.6
+        # config.gpu_options.per_process_gpu_memory_fraction = 0.7
         self.sess = tf.Session(config = config)
         # get arguments
         self.args = self.get_args()
@@ -107,9 +107,9 @@ class NLPBase(object):
         group2.add_argument("--embedding_file", default = "data/glove.6B/glove.6B.100d.txt",
                             type = str_or_none, help = "pre-trained embedding file")
 
-        group2.add_argument("--num_words", default = 20000, type = int, help = "the max number of words in vocabulary")
+        group2.add_argument("--num_words", default = 25000, type = int, help = "the max number of words in vocabulary")
 
-        group2.add_argument("--skip_top", default = 10, type = int, help = "the max number of words in vocabulary")
+        group2.add_argument("--skip_top", default = 20, type = int, help = "the max number of words in vocabulary")
 
         subgroup = group2.add_argument_group("Some default options related to dataset, don't change if it works")
 
@@ -120,9 +120,9 @@ class NLPBase(object):
 
         subgroup.add_argument("--train_file", default = "train.txt", help = "train file, if use SQuAD, this arg will be ignore")
 
-        subgroup.add_argument("--valid_file", default = "valid.txt", help = "validation file, if use SQuAD, this arg will be ignore")
+        subgroup.add_argument("--valid_file", default = "test.txt", help = "validation file, if use SQuAD, this arg will be ignore")
 
-        subgroup.add_argument("--test_file", default = "test.txt", help = "test file, if use SQuAD, this arg will be ignore")
+        subgroup.add_argument("--test_file", default = "test_sub.txt", help = "test file, if use SQuAD, this arg will be ignore")
 
         subgroup.add_argument("--max_count", default = None, type = int_or_none,
                               help = "read n lines of data file, if None, read all data")
@@ -142,7 +142,7 @@ class NLPBase(object):
 
         group3.add_argument("--max_char_len", default = 20, type = int, help = "the max char length of words")
 
-        group3.add_argument("--embedding_dim", default = 300, type = int, help = "dimension of word embeddings")
+        group3.add_argument("--embedding_dim", default = 100, type = int, help = "dimension of word embeddings")
 
         group3.add_argument("--hidden_size", default = 128, type = int, help = "RNN hidden size")
 
@@ -150,7 +150,7 @@ class NLPBase(object):
 
         group3.add_argument("--lr", default = 1e-4, type = float, help = "learning rate")
 
-        group3.add_argument("--keep_prob", default = 0.8, type = float, help = "dropout,percentage to keep during training")
+        group3.add_argument("--keep_prob", default = 0.5, type = float, help = "dropout,percentage to keep during training")
 
         group3.add_argument("--l2", default = 0.005, type = float, help = "l2 regularization weight")
 

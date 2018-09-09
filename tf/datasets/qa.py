@@ -52,23 +52,27 @@ class QADataSetBase():
         self.args = args
         self.max_len = 0  # will be updated when load the train and test file
         self.num_class = num_class
-        self.train_x, self.train_y, self.test_x, self.test_y = self.load_data(file_name)
+        self.train_x, self.train_y, self.valid_x, self.valid_y, self.test_x, self.test_y = self.load_data(file_name)
 
         # for doc
         train_max, train_mean, train_min = self.statistic_len(self.train_x[0])
+        valid_max, valid_mean, valid_min = self.statistic_len(self.valid_x[0])
         test_max, test_mean, test_min = self.statistic_len(self.test_x[0])
         self.doc_max_len = max(train_max, test_max)
         logger("Train passage data max len:%d, mean len:%d, min len:%d " % (train_max, train_mean, train_min))
+        logger("Valid passage data max len:%d, mean len:%d, min len:%d " % (valid_max, valid_mean, valid_min))
         logger("Test passage data max len:%d, mean len:%d, min len:%d " % (test_max, test_mean, test_min))
 
         # for query
         train_max, train_mean, train_min = self.statistic_len(self.train_x[1])
+        valid_max, valid_mean, valid_min = self.statistic_len(self.valid_x[1])
         test_max, test_mean, test_min = self.statistic_len(self.test_x[1])
         self.query_max_len = max(train_max, test_max)
         logger("Train query data max len:%d, mean len:%d, min len:%d " % (train_max, train_mean, train_min))
+        logger("Valid query data max len:%d, mean len:%d, min len:%d " % (valid_max, valid_mean, valid_min))
         logger("Test query data max len:%d, mean len:%d, min len:%d " % (test_max, test_mean, test_min))
 
-        self.valid_nums = 0
+        self.valid_nums = len(self.test_x[0])
         self.train_nums = len(self.train_x[0])
         self.test_nums = len(self.test_x[0])
 
@@ -83,11 +87,15 @@ class QADataSetBase():
         train_x, train_y = self.load_file(os.path.join(self.args.tmp_dir, self.__class__.__name__, file_name + self.args.train_file))
         train_x, train_y = QADataSetBase.sort_corpus(train_x, train_y)
 
+        # load the valid
+        valid_x, valid_y = self.load_file(os.path.join(self.args.tmp_dir, self.__class__.__name__, file_name + self.args.valid_file))
+        valid_x, valid_y = QADataSetBase.sort_corpus(valid_x, valid_y)
+
         # load the test
         test_x, test_y = self.load_file(os.path.join(self.args.tmp_dir, self.__class__.__name__, file_name + self.args.test_file))
-        test_x, test_y = QADataSetBase.sort_corpus(test_x, test_y)
+        # test_x, test_y = QADataSetBase.sort_corpus(test_x, test_y)
 
-        return train_x, train_y, test_x, test_y
+        return train_x, train_y, valid_x, valid_y, test_x, test_y
 
     @staticmethod
     def sort_corpus(data_x, data_y):
@@ -96,14 +104,17 @@ class QADataSetBase():
         qry = list()
         alt = list()
         ids = list()
+
+        alt_no_cut = list()
         yy = list()
         for kk in sorted_corpus:
             doc.append(kk[0])
             qry.append(kk[1])
             alt.append(kk[2])
             ids.append(kk[3])
+            alt_no_cut.append(kk[4])
             yy.append(kk[-1])
-        return [doc, qry, alt, ids], yy
+        return [doc, qry, alt, ids, alt_no_cut], yy
 
     @property
     def train_idx(self):
@@ -132,7 +143,7 @@ class QADataSetBase():
         1 : data_query
         2 : data_alt
         3 : data_query_id
-
+        4 : alter_no_cut
         :param fpath:
         :return:
         """
@@ -141,6 +152,7 @@ class QADataSetBase():
         data_doc = list()
         data_ans = list()
         data_alt = list()
+        data_alt_not_cut = list()
 
         alt_les = list()
         if not os.path.exists(fpath + '.txt'):
@@ -162,14 +174,18 @@ class QADataSetBase():
                     data_query.append(query)
                     data_query_id.append(line["query_id"])
 
-                    alt = []
-
                     alt_tmp = line["alternatives"].split('|')
-                    for l in alt_tmp:
-                        alt.append(default_tokenizer(l))
+                    # alt = []
+                    # for l in alt_tmp:
+                    #     alt.append(default_tokenizer(l))
+                    #
+                    # data_alt.append(alt)
 
-                    data_alt.append(alt)
-                    data_ans.append(alt_tmp.index(line["answer"]))
+                    if "answer" in line:
+                        ans_tmp = alt_tmp.index(line["answer"])
+                    else:
+                        ans_tmp = -1
+                    data_ans.append(ans_tmp)
                     f1.write(json.dumps(line, ensure_ascii = False) + '\n')
             f1.close()
         with io.open(fpath + '.txt', mode = 'r', encoding = 'utf-8') as f:
@@ -181,11 +197,13 @@ class QADataSetBase():
                     logging.error("Deal the input line error" + '：' + line)
                     continue
                 passage = list(line["passage"].split(' '))
-                if len(passage) > 200:
-                    continue
-
+                passage = passage[:200]
                 alt = []
                 alt_tmp = line["alternatives"].split('|')
+                if len(alt_tmp) != 3:
+                    alt_tmp += [alt_tmp[0]] * (3 - len(alt_tmp))
+                assert len(alt_tmp) == 3
+                data_alt_not_cut.append(alt_tmp)
                 for l in alt_tmp:
                     altsss = default_tokenizer(l)
                     alt.append(altsss)
@@ -200,9 +218,14 @@ class QADataSetBase():
                 data_query.append(query)
 
                 data_alt.append(alt)
-                data_ans.append(alt_tmp.index(line["answer"]))
 
-        data_x = [data_doc, data_query, data_alt, data_query_id]
+                if "answer" in line:
+                    ans_tmp = alt_tmp.index(line["answer"])
+                else:
+                    ans_tmp = -1
+                data_ans.append(ans_tmp)
+
+        data_x = [data_doc, data_query, data_alt, data_query_id, data_alt_not_cut]
         data_y = data_ans
         self.alt_max_len = max(self.alt_max_len, max(alt_les))
         logger("Load the data over, size: %d..., alt lenght : %d" % (len(data_ans), self.alt_max_len))
@@ -287,17 +310,18 @@ class QADataSetBase():
         else:
             start = idx * batch_size
             stop = (idx + 1) * batch_size if start < sample_num and (idx + 1) * batch_size < sample_num else len(dataset_x[0])
+
         document = [self.getitem(dataset_x[0], i) for i in range(start, stop)]
         query = [self.getitem(dataset_x[1], i) for i in range(start, stop)]
         alter = [
             sequence.pad_sequences([[self.word2id[d] if self.word2id.get(d) else self.word2id[self._UNKOWN] for d in dd] for dd in dataset_x[2][i]],
-                                   maxlen = self.alt_max_len)
+                                   maxlen = self.alt_max_len, padding = "post")
             for i in range(start, stop)]
         data = {
             "document:0": sequence.pad_sequences(document, maxlen = self.doc_max_len, padding = "post"),
             "answer:0": dataset_y[start:stop],
             "query:0": sequence.pad_sequences(query, maxlen = self.query_max_len, padding = "post"),
-            "alternative:0": alter
+            "alternative:0": alter,
         }
         samples = stop - start
         if len(document) != len(dataset_y[start:stop]) or len(dataset_y[start:stop]) != samples:

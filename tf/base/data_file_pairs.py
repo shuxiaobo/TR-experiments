@@ -60,6 +60,6 @@ dataset_files_pairs = {
     "AIC": [
         "../data/AIC",
         "train.json",
-        "",
-        "test.json"]
+        "test.json",
+        "test_sub.json"]
 }

@@ -38,6 +38,14 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
     def correct_prediction(self, value):
         self._correct_prediction = value
 
+    @property
+    def accuracy(self):
+        return self._accuracy
+
+    @accuracy.setter
+    def accuracy(self, value):
+        self._accuracy = value
+
     def get_train_op(self):
         """
         define optimization operation
@@ -83,7 +91,7 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
 
         self.max_len = self.dataset.max_len
         self.word2id_size = self.dataset.word2id_size
-        self.train_nums, self.valid_nums, self.test_num = self.dataset.train_nums, self.dataset.test_nums, self.dataset.test_nums
+        self.train_nums, self.valid_nums, self.test_num = self.dataset.train_nums, self.dataset.valid_nums, self.dataset.test_nums
 
         self.num_class = self.dataset.num_class
 
@@ -93,8 +101,8 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
 
         self.saver = tf.train.Saver(max_to_keep = 20)
 
-        self.draw_graph()
         if self.args.train:
+            self.draw_graph()
             self.train()
         if self.args.test:
             self.test()
@@ -126,7 +134,7 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
         epochs = self.args.num_epoches
         self.get_train_op()  # get the optimizer op
         self.sess.run(tf.global_variables_initializer())
-        self.load_weight()  # load the trained model
+        # self.load_weight()  # load the trained model
 
         # early stopping params, by default val_acc is the metric
         self.patience, self.best_val_acc = self.args.patience, 0.
@@ -137,7 +145,6 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
         logger("Train on {} batches, {} samples per batch, {} total.".format(batch_num, batch_size, self.train_nums))
 
         step = self.sess.run(self.step)
-        # self.draw_graph()
         while step < batch_num * epochs:
 
             step = self.sess.run(self.step)
@@ -166,11 +173,12 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
                 corrects_in_epoch, samples_in_epoch, loss_in_epoch = 0, 0, 0
                 logger("{}Epoch : {}{}".format("-" * 40, step // batch_num + 1, "-" * 40))
                 # self.dataset.shuffle()
+
             if step and step % batch_num == 0:
+                # evaluate on the valid set and early stopping
                 val_acc, val_loss = self.validate()
-                self.best_val_acc = max(self.best_val_acc, val_acc)
-            # evaluate on the valid set and early stopping
                 self.early_stopping(val_acc, val_loss, step)
+                self.best_val_acc = max(self.best_val_acc, val_acc)
 
     def validate(self):
         batch_size = self.args.batch_size
@@ -181,7 +189,7 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
         #        .format(v_batch_num, batch_size, self.valid_nums))
         val_num, val_corrects, v_loss = 0, 0, 0
         for i in range(v_batch_num):
-            data, samples = self.get_batch_data("test", i)
+            data, samples = self.get_batch_data("valid", i)
             if samples != 0:
                 loss, v_correct = self.sess.run([self.loss, self.correct_prediction], feed_dict = data)
                 val_num += samples
@@ -219,7 +227,7 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
 
     def load_weight(self):
         ckpt = tf.train.get_checkpoint_state(self.args.weight_path)
-        if ckpt is not None and ckpt.model_checkpoint_path.startswith(self.__class__.__name__):
+        if ckpt is not None and ckpt.model_checkpoint_path.startswith(os.path.join(self.args.weight_path, self.__class__.__name__)):
             logger("Load models from {}.".format(ckpt.model_checkpoint_path))
             self.saver.restore(self.sess, ckpt.model_checkpoint_path)
         else:
@@ -233,12 +241,14 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
         batch_num = self.test_num // batch_size
         batch_num = batch_num + 1 if (self.test_num % batch_size) != 0 else batch_num
         correct_num, total_num = 0, 0
+        result = list()
         for i in range(batch_num):
             data, samples = self.get_batch_data("test", i)
             if samples != 0:
-                correct, = self.sess.run([self.correct_prediction], feed_dict = data)
+                correct, pred = self.sess.run([self.correct_prediction, self.prediction], feed_dict = data)
                 correct_num, total_num = correct_num + correct, total_num + samples
-        assert (total_num == self.test_num)
+                result.extend(pred.tolist())
+        assert (total_num == self.test_num == len(result))
         logger("Test on : {}/{}".format(total_num, self.test_num))
         test_acc = correct_num / total_num
         logger("Test accuracy is : {:.5f}".format(test_acc))
@@ -246,7 +256,16 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
             "model": self.model_name,
             "test_acc": test_acc
         }
+        self.test_save(pred = result)
         save_obj_to_json(self.args.weight_path, res, "result.json")
+
+    def test_save(self, pred):
+        """
+        save the test result
+        if you wanna to save the result, please override the method
+        :return:
+        """
+        return
 
     def confirm_model_dataset_fitness(self):
         # make sure the models_in_datasets var is correct
