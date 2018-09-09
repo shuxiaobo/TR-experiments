@@ -26,6 +26,7 @@ class QA(ModelBase):
         query_length = tf.reduce_sum(tf.sign(tf.abs(query)), axis = -1)
         alt_length = tf.reduce_sum(tf.sign(tf.abs(alterative)), axis = -1)
 
+        alt_mask = tf.sequence_mask(alt_length, maxlen = self.dataset.alt_max_len, dtype = tf.float32)
         embedding_matrix = tf.get_variable("embedding_matrix", shape = [self.dataset.query_max_len, self.args.embedding_dim], dtype = tf.float32)
 
         if self.args.rnn_type.lower() == 'modified':
@@ -82,22 +83,31 @@ class QA(ModelBase):
             qry_encoded_dupli = tf.tile(tf.expand_dims(query_encoded, 1), multiples = [1, self.dataset.doc_max_len, 1])
             doc_embed = tf.concat([doc_embed, qry_encoded_dupli], -1)
 
-            cell_fw = MultiRNNCell([CELL(num_units = self.args.hidden_size, activation = activation) for _ in range(self.args.num_layers)])
-            cell_bw = MultiRNNCell([CELL(num_units = self.args.hidden_size, activation = activation) for _ in range(self.args.num_layers)])
-            doc_outputs, doc_last_states = tf.nn.bidirectional_dynamic_rnn(cell_fw = cell_fw, cell_bw = cell_bw, inputs = doc_embed,
-                                                                           sequence_length = doc_length,
-                                                                           initial_state_fw = None, initial_state_bw = None,
-                                                                           dtype = tf.float32, parallel_iterations = None,
-                                                                           swap_memory = True, time_major = False, scope = None)
-            doc_outputs = tf.concat(doc_outputs, axis = -1)
+            doc_inputs = doc_embed
+            doc_outputs_concat = list()
+            for i in range(self.args.num_layers):
+                cell_fw = MultiRNNCell([CELL(num_units = self.args.hidden_size, activation = activation, name = 'rnn_fw_%d' % i)])
+                cell_bw = MultiRNNCell([CELL(num_units = self.args.hidden_size, activation = activation, name = 'rnn_fw_%d' % i)])
+                doc_outputs, doc_last_states = tf.nn.bidirectional_dynamic_rnn(cell_fw = cell_fw, cell_bw = cell_bw, inputs = doc_inputs,
+                                                                               sequence_length = doc_length,
+                                                                               initial_state_fw = None, initial_state_bw = None,
+                                                                               dtype = tf.float32, parallel_iterations = None,
+                                                                               swap_memory = True, time_major = False, scope = None)
+                doc_outputs_concat.extend(list(doc_outputs))
+                doc_inputs = tf.concat([doc_embed, tf.concat(doc_outputs, -1)], -1)
+
+            doc_outputs = tf.concat(doc_outputs_concat, axis = -1)
             doc_last_states = tf.concat(doc_last_states, axis = -1)
             doc_last_states = tf.reshape(doc_last_states, shape = [-1, doc_last_states.get_shape()[0] * doc_last_states.get_shape()[2]])
             doc_outputs_dropped = tf.nn.dropout(doc_outputs, keep_prob = self.args.keep_prob)
             doc_last_states_dropped = tf.nn.dropout(doc_last_states, keep_prob = self.args.keep_prob)
 
         with tf.variable_scope("attention") as scp:
-            doc_out_query_last_att = nn_ops.softmax(tf.squeeze(math_ops.matmul(doc_outputs_dropped, tf.expand_dims(query_encoded, axis = -1)), -1),
-                                                    axis = -1)
+            bi_att_w = tf.get_variable('bi_att_w', shape = [doc_outputs_dropped.get_shape()[-1], query_encoded.get_shape()[-1]])
+            doc_out_query_last_att = nn_ops.softmax(
+                tf.squeeze(math_ops.matmul(special_math_ops.einsum('bij,jk->bik', doc_outputs_dropped, bi_att_w), tf.expand_dims(query_encoded, axis = -1)),
+                           -1),
+                axis = -1)
 
             doc_atted = doc_outputs * tf.expand_dims(doc_out_query_last_att, -1)  # B * D * 2H
             doc_atted_max = math_ops.reduce_max(doc_atted, axis = -2)
@@ -105,9 +115,10 @@ class QA(ModelBase):
         with tf.variable_scope("alter_encoder") as scp:
             alter_embed = embedding_ops.embedding_lookup(embedding_matrix, alterative)
             alter_embed_sumed = tf.reduce_sum(alter_embed, axis = -2)
-            alter_w = tf.get_variable('w', shape = [self.args.embedding_dim, self.args.hidden_size * 2])
-            alter_b = tf.get_variable('b', shape = [self.args.hidden_size * 2])
+            alter_w = tf.get_variable('w', shape = [self.args.embedding_dim, doc_atted.get_shape()[-1]])
+            alter_b = tf.get_variable('b', shape = [doc_atted.get_shape()[-1]])
             alter_embed_wxb = special_math_ops.einsum('bij,jk->bik', alter_embed_sumed, alter_w) + alter_b
+            # alter_embed_wxb = alter_embed_wxb * tf.expand_dims(alt_mask, -1)
             # B * 3 * 2H
 
         with tf.variable_scope("classify") as scp:

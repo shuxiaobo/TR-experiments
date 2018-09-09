@@ -45,7 +45,6 @@ class QADataSetBase():
         self._PAD = '_<PAD>'
         self._PAD_ID = 0
         self._UNKOWN_ID = 1
-
         self.alt_max_len = 0
 
         self.seed = seed
@@ -72,7 +71,7 @@ class QADataSetBase():
         logger("Valid query data max len:%d, mean len:%d, min len:%d " % (valid_max, valid_mean, valid_min))
         logger("Test query data max len:%d, mean len:%d, min len:%d " % (test_max, test_mean, test_min))
 
-        self.valid_nums = len(self.test_x[0])
+        self.valid_nums = len(self.valid_x[0])
         self.train_nums = len(self.train_x[0])
         self.test_nums = len(self.test_x[0])
 
@@ -175,11 +174,6 @@ class QADataSetBase():
                     data_query_id.append(line["query_id"])
 
                     alt_tmp = line["alternatives"].split('|')
-                    # alt = []
-                    # for l in alt_tmp:
-                    #     alt.append(default_tokenizer(l))
-                    #
-                    # data_alt.append(alt)
 
                     if "answer" in line:
                         ans_tmp = alt_tmp.index(line["answer"])
@@ -190,7 +184,7 @@ class QADataSetBase():
             f1.close()
         with io.open(fpath + '.txt', mode = 'r', encoding = 'utf-8') as f:
             logger("Load the data from file: %s" % fpath + ".txt")
-            for line in f.read().splitlines():
+            for i, line in enumerate(f.read().splitlines()):
                 try:
                     line = json.loads(line)
                 except Exception as err:
@@ -227,6 +221,7 @@ class QADataSetBase():
 
         data_x = [data_doc, data_query, data_alt, data_query_id, data_alt_not_cut]
         data_y = data_ans
+        logger("Answers class most common : %s" % str(Counter(data_ans).most_common()))
         self.alt_max_len = max(self.alt_max_len, max(alt_les))
         logger("Load the data over, size: %d..., alt lenght : %d" % (len(data_ans), self.alt_max_len))
         return data_x, data_y

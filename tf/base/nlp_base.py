@@ -107,7 +107,7 @@ class NLPBase(object):
         group2.add_argument("--embedding_file", default = "data/glove.6B/glove.6B.100d.txt",
                             type = str_or_none, help = "pre-trained embedding file")
 
-        group2.add_argument("--num_words", default = 25000, type = int, help = "the max number of words in vocabulary")
+        group2.add_argument("--num_words", default = 15000, type = int, help = "the max number of words in vocabulary")
 
         group2.add_argument("--skip_top", default = 20, type = int, help = "the max number of words in vocabulary")
 
@@ -144,7 +144,7 @@ class NLPBase(object):
 
         group3.add_argument("--embedding_dim", default = 100, type = int, help = "dimension of word embeddings")
 
-        group3.add_argument("--hidden_size", default = 128, type = int, help = "RNN hidden size")
+        group3.add_argument("--hidden_size", default = 64, type = int, help = "RNN hidden size")
 
         group3.add_argument("--grad_clipping", default = 0, type = int, help = "the threshold value of gradient clip")
 
@@ -154,7 +154,7 @@ class NLPBase(object):
 
         group3.add_argument("--l2", default = 0.005, type = float, help = "l2 regularization weight")
 
-        group3.add_argument("--num_layers", default =1, type = int, help = "RNN layer number")
+        group3.add_argument("--num_layers", default =3, type = int, help = "RNN layer number")
 
         group3.add_argument("--rnn_type", default = "modified", type = str_or_none,
                             help = "RNN type, use GRU, LSTM, vanilla rnn, modified rnn, indrnn")
