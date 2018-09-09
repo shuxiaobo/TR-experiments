@@ -9,6 +9,7 @@ from tf.base.rnn_base import ModelBase
 from tensorflow.python.ops import nn_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.contrib.rnn import MultiRNNCell
+from tensorflow.contrib.rnn import MultiRNNCell, LSTMCell, GRUCell, RNNCell
 
 
 class ModifiedRNN(ModelBase):
@@ -24,14 +25,42 @@ class ModifiedRNN(ModelBase):
 
         doc_lens = tf.reduce_sum(tf.sign(tf.abs(x)), axis = -1)
 
+        if self.args.rnn_type.lower() == 'modified':
+            CELL = ModifiedRNNCell
+        elif self.args.rnn_type.lower() == 'lstm':
+            CELL = LSTMCell
+        elif self.args.rnn_type.lower() == 'gru':
+            CELL = GRUCell
+        elif self.args.rnn_type.lower() == 'vanilla':
+            CELL = RNNCell
+        elif self.args.rnn_type.lower() == 'indrnn':
+            CELL = IndRNNCell
+        else:
+            raise NotImplementedError("No rnn_type named : %s implemented. Check." % self.args.rnn_type)
+
+        if self.args.activation == 'sigmoid':
+            activation = math_ops.sigmoid
+        elif self.args.activation == 'relu':
+            activation = nn_ops.relu
+        elif self.args.activation == 'tanh':
+            activation = math_ops.tanh
+        elif self.args.activation == 'log':
+            activation = math_ops.log
+        elif self.args.activation == 'sin':
+            activation = math_ops.sin
+        elif self.args.activation == 'none':
+            activation = lambda yy: yy
+        else:
+            raise NotImplementedError("No activation named : %s implemented. Check." % self.args.rnn_type)
+
         with tf.variable_scope('encoder') as s:
             x_emb = tf.nn.embedding_lookup(params = embedding, ids = x)
 
             if self.args.bidirectional:
                 cell_fw = MultiRNNCell([
-                    ModifiedRNNCell(num_units = self.args.hidden_size, activation = self.args.activation) for _ in range(self.args.num_layers)])
+                    CELL(num_units = self.args.hidden_size, activation = activation) for _ in range(self.args.num_layers)])
                 cell_bw = MultiRNNCell([
-                    ModifiedRNNCell(num_units = self.args.hidden_size, activation = self.args.activation) for _ in range(self.args.num_layers)])
+                    CELL(num_units = self.args.hidden_size, activation = activation) for _ in range(self.args.num_layers)])
                 # fw_initializer = tf.random_normal_initializer(-RECURRENT_MAX_ABS, RECURRENT_MAX_ABS)
                 # bw_initializer = tf.random_normal_initializer(-RECURRENT_MAX_ABS, RECURRENT_MAX_ABS)
                 # cell_fw = MultiRNNCell([
@@ -69,3 +98,5 @@ class ModifiedRNN(ModelBase):
         self.loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits = result, labels = y_true))
 
         self.correct_prediction = tf.reduce_sum(tf.sign(tf.cast(tf.equal(tf.argmax(result, -1), y_true), dtype = tf.int32)))
+
+        self.accuracy = self.correct_prediction / tf.shape(x)[0]

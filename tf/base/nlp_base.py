@@ -142,13 +142,13 @@ class NLPBase(object):
 
         group3.add_argument("--max_char_len", default = 20, type = int, help = "the max char length of words")
 
-        group3.add_argument("--embedding_dim", default = 100, type = int, help = "dimension of word embeddings")
+        group3.add_argument("--embedding_dim", default = 300, type = int, help = "dimension of word embeddings")
 
-        group3.add_argument("--hidden_size", default = 64, type = int, help = "RNN hidden size")
+        group3.add_argument("--hidden_size", default = 128, type = int, help = "RNN hidden size")
 
         group3.add_argument("--grad_clipping", default = 0, type = int, help = "the threshold value of gradient clip")
 
-        group3.add_argument("--lr", default = 2e-4, type = float, help = "learning rate")
+        group3.add_argument("--lr", default = 1e-2, type = float, help = "learning rate")
 
         group3.add_argument("--keep_prob", default = 0.5, type = float, help = "dropout,percentage to keep during training")
 
@@ -156,7 +156,7 @@ class NLPBase(object):
 
         group3.add_argument("--num_layers", default =1, type = int, help = "RNN layer number")
 
-        group3.add_argument("--rnn_type", default = "gru", type = str_or_none,
+        group3.add_argument("--rnn_type", default = "modified", type = str_or_none,
                             help = "RNN type, use GRU, LSTM, vanilla rnn, modified rnn, indrnn")
 
         group3.add_argument("--batch_size", default = 256, type = int, help = "batch_size")
@@ -175,7 +175,7 @@ class NLPBase(object):
         # -----------------------------------------------------------------------------------------------------------
         group4 = parser.add_argument_group("4.model [{}] specific parameters".format(self.model_name))
 
-        group4.add_argument("--activation", default = 'relu', type = str, help = "activation for rnn")
+        group4.add_argument("--activation", default = 'sin', type = str, help = "activation for rnn")
         self.add_args(group4)
 
         args = parser.parse_args()

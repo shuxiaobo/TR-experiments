@@ -102,10 +102,12 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
         self.sess.close()
 
     def draw_graph(self):
-        log_file = '../logs/log-av%s-%s-model%s-emb%d-id%s' % (
-            self.args.activation, self.args.dataset, self.__class__.__name__, self.args.embedding_dim, str(datetime.datetime.now()))
+        log_file = '../logs/log-%s-%s-%s-emb%d-id%s' % (
+            self.args.activation, self.args.dataset, self.args.rnn_type, self.args.embedding_dim, str(datetime.datetime.now()))
         self.writer = tf.summary.FileWriter(log_file)
-        self.writer.add_graph(self.sess.graph)
+        # self.writer.add_graph(self.sess.graph)
+        tf.summary.scalar('loss', self.loss)
+        tf.summary.scalar('accuracy', self.accuracy)
         logger('Save log to %s' % log_file)
 
     def get_batch_data(self, mode, idx):
@@ -154,12 +156,12 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
                     step % batch_num, batch_num,
                     loss_in_epoch / samples_in_epoch,
                     corrects_in_epoch / samples_in_epoch))
-                tf.summary.scalar('loss', loss_in_epoch / samples_in_epoch)
-                tf.summary.scalar('accuracy', corrects_in_epoch / samples_in_epoch)
+
                 merged_summary = tf.summary.merge_all()
                 s = self.sess.run(merged_summary, feed_dict = data)
                 self.writer.add_summary(s, step)
                 self.writer.flush()
+
             if step % batch_num == 0:
                 corrects_in_epoch, samples_in_epoch, loss_in_epoch = 0, 0, 0
                 logger("{}Epoch : {}{}".format("-" * 40, step // batch_num + 1, "-" * 40))
@@ -181,10 +183,7 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
         for i in range(v_batch_num):
             data, samples = self.get_batch_data("test", i)
             if samples != 0:
-                try:
-                    loss, v_correct = self.sess.run([self.loss, self.correct_prediction], feed_dict = data)
-                except:
-                    print(len(data[-1]))
+                loss, v_correct = self.sess.run([self.loss, self.correct_prediction], feed_dict = data)
                 val_num += samples
                 val_corrects += v_correct
                 v_loss += loss * samples

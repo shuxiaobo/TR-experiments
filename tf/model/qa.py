@@ -109,3 +109,5 @@ class QA(ModelBase):
         self.correct_prediction = tf.reduce_sum(tf.cast(tf.equal(tf.argmax(result, -1), answer), tf.int32))
 
         self.loss = tf.reduce_mean(nn_ops.sparse_softmax_cross_entropy_with_logits(logits = result, labels = answer))
+
+        self.accuracy = self.correct_prediction / tf.shape(document)[0]
