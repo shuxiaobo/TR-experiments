@@ -5,6 +5,7 @@ from __future__ import absolute_import, division, unicode_literals
 
 import io
 import os
+import re
 import json
 import jieba
 import logging
@@ -14,6 +15,24 @@ from collections import Counter
 from tf.datasets.classify_eval import ClassifierEval
 from tensorflow.contrib.keras.api.keras.preprocessing import sequence
 from utils.util import logger, prepare_split, write_file
+
+
+def default_tokenizer(sentence):
+    _DIGIT_RE = re.compile(r"\d+")
+    sentence = _DIGIT_RE.sub("0", sentence)  # No digital replace. because the answer contain the number
+    # sentence = " ".join(sentence.split("|"))
+    return list(jieba.cut(sentence))
+
+
+def process_tokens(temp_tokens):
+    tokens = []
+    for token in temp_tokens:
+        l = ("-", "\u2212", "\u2014", "\u2013", "/", "~", '"', "'", "\u201C", "\u2019", "\u201D", "\u2018", "\u00B0")
+        # \u2013 is en-dash. Used for number to nubmer
+        # l = ("-", "\u2212", "\u2014", "\u2013")
+        # l = ("\u2013",)
+        tokens.extend(re.split("([{}])".format("".join(l)), token))
+    return tokens
 
 
 class QADataSetBase():
@@ -132,11 +151,11 @@ class QADataSetBase():
                     except Exception as err:
                         logging.error("Deal the input line error" + '：' + line)
                         continue
-                    passage = list(jieba.cut(line["passage"]))
+                    passage = default_tokenizer(line["passage"])
                     line["passage"] = ' '.join(passage)
                     data_doc.append(passage)
 
-                    query = list(jieba.cut(line["query"]))
+                    query = default_tokenizer(line["query"])
                     line["query"] = ' '.join(query)
                     data_query.append(query)
                     data_query_id.append(line["query_id"])
@@ -145,7 +164,7 @@ class QADataSetBase():
 
                     alt_tmp = line["alternatives"].split('|')
                     for l in alt_tmp:
-                        alt.append(list(jieba.cut(l)))
+                        alt.append(default_tokenizer(l))
 
                     data_alt.append(alt)
                     data_ans.append(alt_tmp.index(line["answer"]))
@@ -166,10 +185,10 @@ class QADataSetBase():
                 alt = []
                 alt_tmp = line["alternatives"].split('|')
                 for l in alt_tmp:
-                    altsss = list(jieba.cut(l))
+                    altsss = default_tokenizer(l)
                     alt.append(altsss)
                     alt_les.extend([len(s) for s in altsss])
-                query = list(line["query"].split(' '))
+                query = line["query"].split(' ')
 
                 if len(query) == 0 or len(alt_tmp) == 0:
                     continue
@@ -190,7 +209,8 @@ class QADataSetBase():
     def prepare_dict(self, file_name, exclude_n = 10, max_size = 10000):
         logger("Prepare the dictionary for the {}...".format(self.__class__.__name__))
         data = self.train_x[0] + self.train_x[1]  # use passage words and query words
-        word2id = QADataSetBase.gen_dictionary(data = data, dict_path = file_name, exclude_n = exclude_n, max_size = max_size)
+        word2id = {self._PAD: self._PAD_ID, self._UNKOWN: self._UNKOWN_ID}
+        word2id = QADataSetBase.gen_dictionary(data = data, word2id = word2id, dict_path = file_name, exclude_n = exclude_n, max_size = max_size)
         logger("Word2id size : %d" % len(word2id))
         return word2id
 
