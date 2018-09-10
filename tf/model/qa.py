@@ -86,6 +86,10 @@ class QA(ModelBase):
 
             doc_inputs = doc_embed
             doc_outputs_concat = list()
+
+            # ELMo s^{task}_j
+            layer_norm_w = tf.get_variable(name = "layer_norm_w", shape = [self.args.num_layers * 2, 1, 1])
+            layer_norm_w = tf.nn.softmax(layer_norm_w)
             for i in range(self.args.num_layers):
                 cell_fw = MultiRNNCell([CELL(num_units = self.args.hidden_size, activation = activation, name = 'rnn_fw_%d' % i)])
                 cell_bw = MultiRNNCell([CELL(num_units = self.args.hidden_size, activation = activation, name = 'rnn_fw_%d' % i)])
@@ -94,10 +98,11 @@ class QA(ModelBase):
                                                                                initial_state_fw = None, initial_state_bw = None,
                                                                                dtype = tf.float32, parallel_iterations = None,
                                                                                swap_memory = True, time_major = False, scope = None)
-                doc_outputs_concat.extend(list(doc_outputs))
+                doc_outputs_concat.extend([tf.expand_dims(doc_outputs[0], 1), tf.expand_dims(doc_outputs[1], 1)])
                 doc_inputs = tf.concat([doc_embed, tf.concat(doc_outputs, -1)], -1)
 
-            doc_outputs = tf.concat(doc_outputs_concat, axis = -1)
+            doc_outputs = tf.concat(doc_outputs_concat, axis = 1) * layer_norm_w
+            doc_outputs = tf.reshape(doc_outputs, shape = [-1, doc_outputs.get_shape()[2], doc_outputs.get_shape()[1] * doc_outputs.get_shape()[-1]])
             doc_last_states = tf.concat(doc_last_states, axis = -1)
             doc_last_states = tf.reshape(doc_last_states, shape = [-1, doc_last_states.get_shape()[0] * doc_last_states.get_shape()[2]])
             doc_outputs_dropped = tf.nn.dropout(doc_outputs, keep_prob = self.args.keep_prob)

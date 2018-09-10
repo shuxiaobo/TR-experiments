@@ -19,9 +19,9 @@ from utils.util import logger, prepare_split, write_file
 
 def default_tokenizer(sentence):
     _DIGIT_RE = re.compile(r"\d+")
-    sentence = _DIGIT_RE.sub("0", sentence)  # No digital replace. because the answer contain the number
+    sentence = _DIGIT_RE.sub("0", sentence)  #  digital replace. because the answer contain the number
     _DIGIT_RE = re.compile(r"^[A-Za-z]+$")
-    sentence = _DIGIT_RE.sub("a", sentence)  # No digital replace. because the answer contain the number
+    sentence = _DIGIT_RE.sub("a", sentence)  # No char replace. because the answer donnot contain the char
     # sentence = " ".join(sentence.split("|"))
     return list(jieba.cut(sentence))
 

@@ -143,11 +143,11 @@ class NLPBase(object):
 
         group3.add_argument("--max_char_len", default = 20, type = int, help = "the max char length of words")
 
-        group3.add_argument("--embedding_dim", default = 100, type = int, help = "dimension of word embeddings")
+        group3.add_argument("--embedding_dim", default = 30, type = int, help = "dimension of word embeddings")
 
-        group3.add_argument("--hidden_size", default = 128, type = int, help = "RNN hidden size")
+        group3.add_argument("--hidden_size", default = 28, type = int, help = "RNN hidden size")
 
-        group3.add_argument("--grad_clipping", default = 10, type = int, help = "the threshold value of gradient clip")
+        group3.add_argument("--grad_clipping", default = 0, type = int, help = "the threshold value of gradient clip")
 
         group3.add_argument("--lr", default = 1e-4, type = float, help = "learning rate")
 
@@ -155,9 +155,9 @@ class NLPBase(object):
 
         group3.add_argument("--l2", default = 0.005, type = float, help = "l2 regularization weight")
 
-        group3.add_argument("--num_layers", default = 3, type = int, help = "RNN layer number")
+        group3.add_argument("--num_layers", default = 2, type = int, help = "RNN layer number")
 
-        group3.add_argument("--rnn_type", default = "gru", type = str_or_none,
+        group3.add_argument("--rnn_type", default = "modified", type = str_or_none,
                             help = "RNN type, use GRU, LSTM, vanilla rnn, modified rnn, indrnn")
 
         group3.add_argument("--batch_size", default = 256, type = int, help = "batch_size")
