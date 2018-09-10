@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Created by ShaneSue on 2018/8/31
-import argparse
-import logging
+import os
 import sys
-
+import logging
+import argparse
 import numpy as np
 import tensorflow as tf
 
@@ -37,7 +37,8 @@ class NLPBase(object):
         tf.set_random_seed(self.args.random_seed)
 
         # save arguments
-        save_args(args = self.args)
+        if not self.args.test:
+            save_args(args = self.args)
 
     def add_args(self, parser):
         """
@@ -91,7 +92,7 @@ class NLPBase(object):
 
         group1.add_argument("--weight_path", default = "weights", help = "path to save all trained models")
 
-        group1.add_argument("--args_file", default = None, type = str_or_none, help = "json file of current args")
+        group1.add_argument("--args_file", default = 'args.json', type = str_or_none, help = "json file of current args")
 
         group1.add_argument("--print_every_n", default = 20, type = int, help = "print performance every n steps")
 
@@ -144,9 +145,9 @@ class NLPBase(object):
 
         group3.add_argument("--embedding_dim", default = 100, type = int, help = "dimension of word embeddings")
 
-        group3.add_argument("--hidden_size", default = 64, type = int, help = "RNN hidden size")
+        group3.add_argument("--hidden_size", default = 128, type = int, help = "RNN hidden size")
 
-        group3.add_argument("--grad_clipping", default = 0, type = int, help = "the threshold value of gradient clip")
+        group3.add_argument("--grad_clipping", default = 10, type = int, help = "the threshold value of gradient clip")
 
         group3.add_argument("--lr", default = 1e-4, type = float, help = "learning rate")
 
@@ -154,9 +155,9 @@ class NLPBase(object):
 
         group3.add_argument("--l2", default = 0.005, type = float, help = "l2 regularization weight")
 
-        group3.add_argument("--num_layers", default =3, type = int, help = "RNN layer number")
+        group3.add_argument("--num_layers", default = 3, type = int, help = "RNN layer number")
 
-        group3.add_argument("--rnn_type", default = "modified", type = str_or_none,
+        group3.add_argument("--rnn_type", default = "gru", type = str_or_none,
                             help = "RNN type, use GRU, LSTM, vanilla rnn, modified rnn, indrnn")
 
         group3.add_argument("--batch_size", default = 256, type = int, help = "batch_size")
@@ -175,14 +176,15 @@ class NLPBase(object):
         # -----------------------------------------------------------------------------------------------------------
         group4 = parser.add_argument_group("4.model [{}] specific parameters".format(self.model_name))
 
-        group4.add_argument("--activation", default = 'sin', type = str, help = "activation for rnn")
+        group4.add_argument("--activation", default = 'relu', type = str, help = "activation for rnn")
         self.add_args(group4)
 
         args = parser.parse_args()
 
-        setup_from_args_file(args.args_file)
-
-        args = parser.parse_args()
+        if args.test:
+            setup_from_args_file(os.path.join(args.weight_path, args.args_file))
+            args.test = True
+            args.train = False
 
         # set debug params
         args.max_count = 7392 if args.debug else args.max_count

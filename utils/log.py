@@ -12,6 +12,8 @@ err = logging.error
 def setup_from_args_file(file):
     if not file:
         return
+
+    logger('Set up args from json file...')
     json_dict = json.load(open(file, encoding="utf-8"))
     args = [sys.argv[0]]
     for k, v in json_dict.items():
@@ -24,7 +26,7 @@ def save_args(args):
     """
     save all arguments.
     """
-    save_obj_to_json(args.weight_path, vars(args), filename="args.json")
+    save_obj_to_json(args.weight_path, vars(args), filename=args.args_file)
     pprint(vars(args), indent=4)
 
 

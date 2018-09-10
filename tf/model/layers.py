@@ -139,6 +139,45 @@ class ModifiedRNNCell(LayerRNNCell):
         return output, output
 
 
+class VanillaRNNCell(LayerRNNCell):
+    def __init__(self, num_units, activation = nn_ops.relu, bias = False, reuse = None, name = None):
+        super(VanillaRNNCell, self).__init__(_reuse = reuse, name = name)
+        self._num_units = num_units
+        self.bias = bias
+        self._activation = activation
+
+    @property
+    def state_size(self):
+        return self._num_units
+
+    @property
+    def output_size(self):
+        return self._num_units
+
+    def build(self, inputs_shape):
+        if inputs_shape[1].value is None:
+            raise ValueError("Expected inputs.shape[-1] to be known, saw shape: %s"
+                             % inputs_shape)
+        init_ih = init_ops.identity_initializer
+        self._ih = tf.get_variable(name = 'ih', shape = [inputs_shape[1], self.state_size], initializer = init_ih)
+
+        init_hh = init_ops.identity_initializer
+        self._hh = tf.get_variable(name = 'hh', shape = [self.state_size, self.state_size], initializer = init_hh)
+
+        if self.bias:
+            self._bias = self.add_variable("bias", shape = [self.state_size], initializer = init_ops.zeros_initializer)
+        self.built = True
+
+    def call(self, inputs, state):
+        gate_inputs = math_ops.matmul(inputs, self._ih)
+        recurrent_update = math_ops.matmul(state, self._hh)
+        gate_inputs = math_ops.add(gate_inputs, recurrent_update)
+        if self.bias:
+            gate_inputs = nn_ops.bias_add(gate_inputs, self._bias)
+        output = self._activation(gate_inputs)
+        return output, output
+
+
 class ClassifiedNet():
 
     def __init__(self, input_size, output_size):

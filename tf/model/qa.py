@@ -10,6 +10,7 @@ from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import embedding_ops
 from tf.model.modified_rnn import ModifiedRNNCell
+from tf.model.layers import VanillaRNNCell
 from tensorflow.python.ops import special_math_ops
 from tensorflow.contrib.rnn import MultiRNNCell, LSTMCell, GRUCell, RNNCell
 
@@ -36,7 +37,7 @@ class QA(ModelBase):
         elif self.args.rnn_type.lower() == 'gru':
             CELL = GRUCell
         elif self.args.rnn_type.lower() == 'vanilla':
-            CELL = RNNCell
+            CELL = VanillaRNNCell
         elif self.args.rnn_type.lower() == 'indrnn':
             CELL = IndRNNCell
         else:
@@ -114,9 +115,9 @@ class QA(ModelBase):
 
         with tf.variable_scope("alter_encoder") as scp:
             alter_embed = embedding_ops.embedding_lookup(embedding_matrix, alterative)
-            alter_embed_sumed = tf.reduce_sum(alter_embed, axis = -2)
-            alter_w = tf.get_variable('w', shape = [self.args.embedding_dim, doc_atted.get_shape()[-1]])
-            alter_b = tf.get_variable('b', shape = [doc_atted.get_shape()[-1]])
+            alter_embed_sumed = tf.reduce_max(alter_embed * tf.expand_dims(alt_mask, -1), axis = -2)
+            alter_w = tf.get_variable('alter_w', shape = [self.args.embedding_dim, doc_atted.get_shape()[-1]])
+            alter_b = tf.get_variable('alter_b', shape = [doc_atted.get_shape()[-1]])
             alter_embed_wxb = special_math_ops.einsum('bij,jk->bik', alter_embed_sumed, alter_w) + alter_b
             # alter_embed_wxb = alter_embed_wxb * tf.expand_dims(alt_mask, -1)
             # B * 3 * 2H
