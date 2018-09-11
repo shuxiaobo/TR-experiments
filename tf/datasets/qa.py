@@ -19,9 +19,11 @@ from utils.util import logger, prepare_split, write_file
 
 def default_tokenizer(sentence):
     _DIGIT_RE = re.compile(r"\d+")
-    sentence = _DIGIT_RE.sub("0", sentence)  #  digital replace. because the answer contain the number
-    _DIGIT_RE = re.compile(r"^[A-Za-z]+$")
-    sentence = _DIGIT_RE.sub("a", sentence)  # No char replace. because the answer donnot contain the char
+    sentence = _DIGIT_RE.sub("0", sentence)  # digital replace. because the answer contain the number
+    # _DIGIT_RE = re.compile(r"^[A-Za-z]+$")
+    # sentence = _DIGIT_RE.sub("a", sentence)  # No char replace. because the answer donnot contain the char
+    _NOCHINESE_RE = re.compile(r"[^\w\u4e00-\u9fff]+")
+    sentence = _NOCHINESE_RE.sub(" ", sentence)
     # sentence = " ".join(sentence.split("|"))
     return list(jieba.cut(sentence))
 
@@ -57,28 +59,33 @@ class QADataSetBase():
         train_max, train_mean, train_min = self.statistic_len(self.train_x[0])
         valid_max, valid_mean, valid_min = self.statistic_len(self.valid_x[0])
         test_max, test_mean, test_min = self.statistic_len(self.test_x[0])
-        self.doc_max_len = max(train_max, test_max)
+        self.doc_max_len = max(train_max, valid_max, test_max)
         logger("Train passage data max len:%d, mean len:%d, min len:%d " % (train_max, train_mean, train_min))
         logger("Valid passage data max len:%d, mean len:%d, min len:%d " % (valid_max, valid_mean, valid_min))
         logger("Test passage data max len:%d, mean len:%d, min len:%d " % (test_max, test_mean, test_min))
-
         # for query
         train_max, train_mean, train_min = self.statistic_len(self.train_x[1])
         valid_max, valid_mean, valid_min = self.statistic_len(self.valid_x[1])
         test_max, test_mean, test_min = self.statistic_len(self.test_x[1])
-        self.query_max_len = max(train_max, test_max)
+        self.query_max_len = max(train_max, valid_max, test_max)
         logger("Train query data max len:%d, mean len:%d, min len:%d " % (train_max, train_mean, train_min))
         logger("Valid query data max len:%d, mean len:%d, min len:%d " % (valid_max, valid_mean, valid_min))
         logger("Test query data max len:%d, mean len:%d, min len:%d " % (test_max, test_mean, test_min))
-
+        self.d_char_len = self.args.max_char_len
+        self.q_char_len = self.args.max_char_len
+        # if self.args.use_char_embedding:
+        #     self.d_char_len, _, _ = self.statistic_len(self.train_x[0] + self.valid_x[0] + self.test_x[0], char = True)
+        #     self.q_char_len, _, _ = self.statistic_len(self.train_x[1] + self.valid_x[1] + self.test_x[1], char = True)
+        #     logger("Document char max len:%d, Query char max len:%d " % (self.d_char_len, self.q_char_len))
         self.valid_nums = len(self.valid_x[0])
         self.train_nums = len(self.train_x[0])
         self.test_nums = len(self.test_x[0])
 
         # load the data word dict
-        self.word2id, self.word_file = self.get_word_index(
-            os.path.join(args.tmp_dir, self.__class__.__name__, file_name + args.word_file), exclude_n = self.args.skip_top, max_size = self.args.num_words)
+        self.word2id, self.char2id, self.word_file = self.get_word_index(
+            os.path.join(args.tmp_dir, self.__class__.__name__), exclude_n = self.args.skip_top, max_size = self.args.num_words)
         self.word2id_size = len(self.word2id)
+        self.char2id_size = len(self.char2id) if self.char2id else 0
         self.train_idx = np.random.permutation(self.train_nums // self.args.batch_size)
 
     def load_data(self, file_name = ''):
@@ -123,9 +130,8 @@ class QADataSetBase():
     def train_idx(self, value):
         self._train_idx = value
 
-    def statistic_len(self, data):
-
-        lens = [len(d) for d in data]
+    def statistic_len(self, data, char = False):
+        lens = [len(d) for d in data] if not char else [len(c) for d in data for c in d]
         if len(lens) == 0:
             return 0, 0, 0
         return max(lens), sum(lens) / len(lens), min(lens)
@@ -223,22 +229,26 @@ class QADataSetBase():
         data_y = data_ans
         logger("Answers class most common : %s" % str(Counter(data_ans).most_common()))
         self.alt_max_len = max(self.alt_max_len, max(alt_les))
-        logger("Load the data over, size: %d..., alt lenght : %d" % (len(data_ans), self.alt_max_len))
+        logger("Load the data over, size: %d..., alt length : %d" % (len(data_ans), self.alt_max_len))
         return data_x, data_y
 
     def prepare_dict(self, file_name, exclude_n = 10, max_size = 10000):
         logger("Prepare the dictionary for the {}...".format(self.__class__.__name__))
-        data = self.train_x[0] + self.train_x[1]  # use passage words and query words
+        data = self.train_x[0] + self.train_x[1] + self.valid_x[0] + self.valid_x[1]  # use passage words and query words
         word2id = {self._PAD: self._PAD_ID, self._UNKOWN: self._UNKOWN_ID}
-        word2id = QADataSetBase.gen_dictionary(data = data, word2id = word2id, dict_path = file_name, exclude_n = exclude_n, max_size = max_size)
-        return word2id
+        char2id = {self._PAD: self._PAD_ID, self._UNKOWN: self._UNKOWN_ID}
+        word2id = QADataSetBase.gen_dictionary(data = data, word2id = word2id, dict_path = os.path.join(file_name, self.args.word_file), exclude_n = exclude_n,
+                                               max_size = max_size)
+        char2id = QADataSetBase.gen_char_dictionary(data = self.train_x[0] + self.train_x[1], char2id = char2id,
+                                                    dict_path = os.path.join(file_name, self.args.char_file),
+                                                    exclude_n = exclude_n, max_size = max_size)
+        return word2id, char2id
 
     @staticmethod
     def gen_dictionary(data, dict_path, exclude_n = 10, max_size = 10000, word2id = None):
         word2id = dict() if not word2id else word2id
 
         for i, d in enumerate(data):
-            # d = jieba.cut(d)
             for j, s in enumerate(d):
                 if s not in word2id.keys():
                     word2id.setdefault(s, 0)
@@ -251,22 +261,46 @@ class QADataSetBase():
                 f.write(d[0] + '\n')
         return word2id
 
+    @staticmethod
+    def gen_char_dictionary(data, dict_path, exclude_n = 10, max_size = 10000, char2id = None):
+        char2id = dict() if not char2id else char2id
+        for i, d in enumerate(data):
+            for j, s in enumerate(d):
+                for k, q in enumerate(s):
+                    if not char2id.get(q):
+                        char2id.setdefault(q, 0)
+                    char2id[q] += 1
+        c = Counter(char2id)
+        rs = c.most_common()
+        char2id = dict(char2id, **{k[0]: v for v, k in enumerate(rs[exclude_n:max_size + exclude_n])})
+        with open(dict_path, mode = 'w+', encoding = 'utf-8') as f:
+            for d in rs:
+                f.write(d[0] + '\n')
+        return char2id
+
     def get_word_index(self, path = None, exclude_n = 10, max_size = 10000):
         if not path:
-            path = self.args.tmp_dir + self.__class__.__name__ + self.args.word_file
-        if os.path.isfile(path) and os.path.getsize(path) > 0:
+            path = self.args.tmp_dir + self.__class__.__name__
+        word2id, char2id = None, None
+        if os.path.isfile(os.path.join(path, self.args.word_file)) and os.path.getsize(os.path.join(path, self.args.word_file)) > 0:
             word2id = {self._PAD: self._PAD_ID, self._UNKOWN: self._UNKOWN_ID}
-            with open(path, mode = 'r', encoding = 'utf-8') as f:
+            with open(os.path.join(path, self.args.word_file), mode = 'r', encoding = 'utf-8') as f:
+                for i in range(exclude_n): f.readline()
+                for i in range(exclude_n, max_size + exclude_n):
+                    l = f.readline().strip()
+                    word2id.setdefault(l, len(word2id))
+        if self.args.use_char_embedding and os.path.isfile(os.path.join(path, self.args.char_file)) and os.path.getsize(
+                os.path.join(path, self.args.char_file)) > 0:
+            char2id = {self._PAD: self._PAD_ID, self._UNKOWN: self._UNKOWN_ID}
+            with open(os.path.join(path, self.args.char_file), mode = 'r', encoding = 'utf-8') as f:
                 for i in range(exclude_n): f.readline()
                 for i in range(exclude_n, max_size + exclude_n):
                     l = f.readline()
-                    word2id.setdefault(l.strip(), len(word2id))
-                # for l in f.readlines()[exclude_n: max_size + exclude_n]:
-                #     word2id.setdefault(l.strip(), len(word2id))
+                    char2id.setdefault(l.strip(), len(char2id))
         else:
-            word2id = self.prepare_dict(path, exclude_n = exclude_n, max_size = max_size)
+            word2id, char2id = self.prepare_dict(path, exclude_n = exclude_n, max_size = max_size)
         logger('Word2id size : %d' % len(word2id))
-        return word2id, path
+        return word2id, char2id, path
 
     def getitem(self, dataset, index):
         result = [self.word2id[d] if self.word2id.get(d) else self.word2id[self._UNKOWN] for d in dataset[index]]
@@ -281,6 +315,10 @@ class QADataSetBase():
         test = [x + [str(y)] for x, y in zip(testx, testy)]
         write_file(data = train, path = os.path.join(args.tmp_dir, self.__class__.__name__, args.train_file))
         write_file(data = test, path = os.path.join(args.tmp_dir, self.__class__.__name__, args.test_file))
+
+    def getitem_char(self, dataset, index):
+        result = [[self.char2id[d] if self.char2id.get(d) else self.char2id[self._UNKOWN] for c in d[:self.args.max_char_len]] for d in dataset[index]]
+        return result
 
     def get_next_batch(self, mode, idx):
         """
@@ -318,9 +356,19 @@ class QADataSetBase():
             "query:0": sequence.pad_sequences(query, maxlen = self.query_max_len, padding = "post"),
             "alternative:0": alter,
         }
+        if self.args.use_char_embedding:
+            d = {"document_char:0": sequence.pad_sequences(
+                [sequence.pad_sequences(self.getitem_char(dataset_x[0], i), maxlen = self.d_char_len, padding = "post") for i in
+                 range(start, stop)], maxlen = self.doc_max_len, padding = "post"),
+                "query_char:0": sequence.pad_sequences(
+                    [sequence.pad_sequences(self.getitem_char(dataset_x[1], i), maxlen = self.q_char_len, padding = "post") for i in
+                     range(start, stop)], maxlen = self.query_max_len, padding = "post")
+            }
+            data = dict(data, **d)
+
         samples = stop - start
-        if len(document) != len(dataset_y[start:stop]) or len(dataset_y[start:stop]) != samples:
-            print(len(document), len(dataset_y[start:stop]), samples)
+        # if len(document) != len(dataset_y[start:stop]) or len(dataset_y[start:stop]) != samples:
+        #     print(len(document), len(dataset_y[start:stop]), samples)
         return data, samples
 
 

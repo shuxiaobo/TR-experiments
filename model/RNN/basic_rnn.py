@@ -159,10 +159,10 @@ class BaseRNN(BaseModel):
                     x_T = list(reversed(x_T))
                 for k, x_t in enumerate(x_T):
                     hx_cell = cell(x_t, hx_cell)
-                    if k % 2 == 0 and k != 0:
-                        hx_cell = hx_cell + x_T[k - 2]
-                    if self.truncate and k % 3 == 0:
-                        hx_cell = hx_cell.detach()
+                    # if k % 2 == 0 and k != 0:
+                    #     hx_cell = hx_cell + x_T[k - 2]
+                    # if self.truncate and k % 3 == 0:
+                    #     hx_cell = hx_cell.detach()
                     outputs.append(hx_cell)
                 if dir == 1:
                     outputs = outputs[::-1]

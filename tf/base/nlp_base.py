@@ -131,6 +131,9 @@ class NLPBase(object):
         subgroup.add_argument("--word_file", default = 'word2id.txt', type = str_or_none,
                               help = "args.word_file")
 
+        subgroup.add_argument("--char_file", default = 'char2id.txt', type = str_or_none,
+                              help = "args.char_file")
+
         # hyper-parameters
         group3 = parser.add_argument_group("3.Hyper parameters shared by all models")
 
@@ -143,13 +146,13 @@ class NLPBase(object):
 
         group3.add_argument("--max_char_len", default = 20, type = int, help = "the max char length of words")
 
-        group3.add_argument("--embedding_dim", default = 30, type = int, help = "dimension of word embeddings")
+        group3.add_argument("--embedding_dim", default = 100, type = int, help = "dimension of word embeddings")
 
-        group3.add_argument("--hidden_size", default = 28, type = int, help = "RNN hidden size")
+        group3.add_argument("--hidden_size", default = 64, type = int, help = "RNN hidden size")
 
         group3.add_argument("--grad_clipping", default = 0, type = int, help = "the threshold value of gradient clip")
 
-        group3.add_argument("--lr", default = 1e-4, type = float, help = "learning rate")
+        group3.add_argument("--lr", default = 1e-3, type = float, help = "learning rate")
 
         group3.add_argument("--keep_prob", default = 0.5, type = float, help = "dropout,percentage to keep during training")
 
@@ -157,7 +160,7 @@ class NLPBase(object):
 
         group3.add_argument("--num_layers", default = 2, type = int, help = "RNN layer number")
 
-        group3.add_argument("--rnn_type", default = "modified", type = str_or_none,
+        group3.add_argument("--rnn_type", default = "gru", type = str_or_none,
                             help = "RNN type, use GRU, LSTM, vanilla rnn, modified rnn, indrnn")
 
         group3.add_argument("--batch_size", default = 256, type = int, help = "batch_size")

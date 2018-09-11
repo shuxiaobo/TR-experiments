@@ -12,7 +12,7 @@ from tensorflow.python.ops import embedding_ops
 from tf.model.modified_rnn import ModifiedRNNCell
 from tf.model.layers import VanillaRNNCell
 from tensorflow.python.ops import special_math_ops
-from tensorflow.contrib.rnn import MultiRNNCell, LSTMCell, GRUCell, RNNCell
+from tensorflow.contrib.rnn import MultiRNNCell, LSTMCell, GRUCell, RNNCell, DropoutWrapper
 
 
 class QA(ModelBase):
@@ -22,13 +22,16 @@ class QA(ModelBase):
         query = tf.placeholder(dtype = tf.int64, shape = [None, self.dataset.query_max_len], name = "query")
         answer = tf.placeholder(dtype = tf.int64, shape = [None], name = "answer")
         alterative = tf.placeholder(dtype = tf.int64, shape = [None, 3, self.dataset.alt_max_len], name = "alternative")
+        if self.args.use_char_embedding:
+            q_input_char = tf.placeholder(dtype = tf.int32, shape = [None, self.dataset.query_max_len, self.dataset.q_char_len], name = 'query_char')
+            d_input_char = tf.placeholder(dtype = tf.int32, shape = [None, self.dataset.doc_max_len, self.dataset.d_char_len], name = 'document_char')
 
         doc_length = tf.reduce_sum(tf.sign(tf.abs(document)), axis = -1)
         query_length = tf.reduce_sum(tf.sign(tf.abs(query)), axis = -1)
         alt_length = tf.reduce_sum(tf.sign(tf.abs(alterative)), axis = -1)
 
         alt_mask = tf.sequence_mask(alt_length, maxlen = self.dataset.alt_max_len, dtype = tf.float32)
-        embedding_matrix = tf.get_variable("embedding_matrix", shape = [self.dataset.query_max_len, self.args.embedding_dim], dtype = tf.float32)
+        embedding_matrix = tf.get_variable("embedding_matrix", shape = [self.dataset.word2id_size, self.args.embedding_dim], dtype = tf.float32)
 
         if self.args.rnn_type.lower() == 'modified':
             CELL = ModifiedRNNCell
@@ -58,9 +61,72 @@ class QA(ModelBase):
         else:
             raise NotImplementedError("No activation named : %s implemented. Check." % self.args.rnn_type)
 
+        if self.args.use_char_embedding:
+            char_embedding = tf.get_variable(name = 'char_embdding_matrix', shape = [self.dataset.char2id_size, self.args.char_embedding_dim],
+                                             dtype = tf.float32,
+                                             trainable = True)
+            q_char_embed = tf.nn.embedding_lookup(char_embedding, q_input_char)
+            d_char_embed = tf.nn.embedding_lookup(char_embedding, d_input_char)
+            q_char_embed = tf.nn.dropout(q_char_embed, keep_prob = self.args.keep_prob)
+            d_char_embed = tf.nn.dropout(d_char_embed, keep_prob = self.args.keep_prob)
+            with tf.variable_scope('char_embedding', reuse = tf.AUTO_REUSE) as scp:
+                q_char_embed = tf.reshape(q_char_embed, [-1, self.dataset.query_max_len * self.dataset.q_char_len, self.args.char_embedding_dim])
+                d_char_embed = tf.reshape(d_char_embed, [-1, self.dataset.doc_max_len * self.dataset.d_char_len, self.args.char_embedding_dim])
+
+                char_rnn_f = MultiRNNCell(
+                    cells = [DropoutWrapper(CELL(num_units = self.args.char_hidden_size, activation = activation), output_keep_prob = self.args.keep_prob)])
+                char_rnn_b = MultiRNNCell(
+                    cells = [DropoutWrapper(CELL(num_units = self.args.char_hidden_size, activation = activation), output_keep_prob = self.args.keep_prob)])
+
+                d_char_embed_out, _ = tf.nn.bidirectional_dynamic_rnn(cell_fw = char_rnn_f, cell_bw = char_rnn_b, inputs = d_char_embed,
+                                                                      sequence_length = doc_length, initial_state_bw = None,
+                                                                      dtype = "float32", parallel_iterations = None,
+                                                                      swap_memory = True, time_major = False, scope = 'char_rnn')
+                q_char_embed_out, _ = tf.nn.bidirectional_dynamic_rnn(cell_fw = char_rnn_f, cell_bw = char_rnn_b, inputs = q_char_embed,
+                                                                      sequence_length = query_length, initial_state_bw = None,
+                                                                      dtype = "float32", parallel_iterations = None,
+                                                                      swap_memory = True, time_major = False, scope = 'char_rnn')
+
+                # with tf.variable_scope('char_conv', reuse = tf.AUTO_REUSE) as scp:
+                #     q_char_embed = tf.transpose(q_char_embed, perm = [0, 2, 3, 1])  # [batch, height, width, channels]
+                #     filter = tf.get_variable('q_filter_w',
+                #                              shape = [5, 5, self.dataset.query_max_len,
+                #                                       self.dataset.query_max_len])  # [filter_height, filter_width, in_channels, out_channels]
+                #     cnned_char = tf.nn.conv2d(q_char_embed, filter, strides = [1, 1, 1, 1], padding = 'VALID', use_cudnn_on_gpu = True,
+                #                               data_format = "NHWC",
+                #                               name = None)  # [B, (char_len-filter_size/stride), (word_len-filter_size/stride), d_len]
+                #
+                #     q_char_embed_out = tf.nn.max_pool(cnned_char, ksize = [1, 5, 5, 1], strides = [1, 1, 1, 1], padding = 'VALID',
+                #                                       data_format = "NHWC",
+                #                                       name = None)
+                #
+                #     char_out_size = q_char_embed_out.get_shape().as_list()[1] * q_char_embed_out.get_shape().as_list()[2]
+                #     q_char_embed_out = tf.reshape(tf.transpose(q_char_embed_out, perm = [0, 3, 1, 2]),
+                #                                   shape = [-1, self.dataset.query_max_len, char_out_size])
+                #
+                #     d_char_embed = tf.transpose(d_char_embed, perm = [0, 2, 3, 1])  # [batch, height, width, channels]
+                #     filter = tf.get_variable('d_filter_w',
+                #                              shape = [5, 5, self.dataset.doc_max_len,
+                #                                       self.dataset.doc_max_len])  # [filter_height, filter_width, in_channels, out_channels]
+                #     cnned_char = tf.nn.conv2d(d_char_embed, filter, strides = [1, 1, 1, 1], padding = 'VALID', use_cudnn_on_gpu = True,
+                #                               data_format = "NHWC",
+                #                               name = None)  # [B, (char_len-filter_size/stride), (word_len-filter_size/stride), d_len]
+                #
+                #     d_char_embed_out = tf.nn.max_pool(cnned_char, ksize = [1, 5, 5, 1], strides = [1, 1, 1, 1], padding = 'VALID',
+                #                                       data_format = "NHWC",
+                #                                       name = None)
+                #     char_out_size = d_char_embed_out.get_shape().as_list()[1] * d_char_embed_out.get_shape().as_list()[2]
+                #     d_char_embed_out = tf.reshape(tf.transpose(d_char_embed_out, perm = [0, 3, 1, 2]),
+                #                                   shape = [-1, self.dataset.doc_max_len, char_out_size])
+                #
+                #     d_char_embed_out = tf.reshape(d_char_embed_out, shape = [-1, self.dataset.doc_max_len, char_out_size])
+                d_char_out = tf.concat(d_char_embed_out, -1)
+                q_char_out = tf.concat(q_char_embed_out, -1)
+
         with tf.variable_scope("query_encoder") as scp:
             query_embed = tf.nn.embedding_lookup(embedding_matrix, query)
-
+            if self.args.use_char_embedding:
+                query_embed = tf.concat([query_embed, q_char_out], -1)
             cell_fw = MultiRNNCell([CELL(num_units = self.args.hidden_size, activation = activation) for _ in range(self.args.num_layers)])
             cell_bw = MultiRNNCell([CELL(num_units = self.args.hidden_size, activation = activation) for _ in range(self.args.num_layers)])
 
@@ -80,16 +146,14 @@ class QA(ModelBase):
 
         with tf.variable_scope('doc_encoder') as scp:
             doc_embed = tf.nn.embedding_lookup(embedding_matrix, document)
-
+            if self.args.use_char_embedding:
+                doc_embed = tf.concat([doc_embed, d_char_out], -1)
             qry_encoded_dupli = tf.tile(tf.expand_dims(query_encoded, 1), multiples = [1, self.dataset.doc_max_len, 1])
             doc_embed = tf.concat([doc_embed, qry_encoded_dupli], -1)
 
             doc_inputs = doc_embed
             doc_outputs_concat = list()
 
-            # ELMo s^{task}_j
-            layer_norm_w = tf.get_variable(name = "layer_norm_w", shape = [self.args.num_layers * 2, 1, 1])
-            layer_norm_w = tf.nn.softmax(layer_norm_w)
             for i in range(self.args.num_layers):
                 cell_fw = MultiRNNCell([CELL(num_units = self.args.hidden_size, activation = activation, name = 'rnn_fw_%d' % i)])
                 cell_bw = MultiRNNCell([CELL(num_units = self.args.hidden_size, activation = activation, name = 'rnn_fw_%d' % i)])
@@ -98,11 +162,16 @@ class QA(ModelBase):
                                                                                initial_state_fw = None, initial_state_bw = None,
                                                                                dtype = tf.float32, parallel_iterations = None,
                                                                                swap_memory = True, time_major = False, scope = None)
-                doc_outputs_concat.extend([tf.expand_dims(doc_outputs[0], 1), tf.expand_dims(doc_outputs[1], 1)])
+                doc_outputs_concat.extend(doc_outputs)
                 doc_inputs = tf.concat([doc_embed, tf.concat(doc_outputs, -1)], -1)
 
-            doc_outputs = tf.concat(doc_outputs_concat, axis = 1) * layer_norm_w
-            doc_outputs = tf.reshape(doc_outputs, shape = [-1, doc_outputs.get_shape()[2], doc_outputs.get_shape()[1] * doc_outputs.get_shape()[-1]])
+            # ELMo s^{task}_j
+            # doc_outputs_concat = [tf.expand_dims(dd, 1) for dd in doc_outputs_concat]
+            # layer_norm_w = tf.get_variable(name = "layer_norm_w", shape = [self.args.num_layers * 2, 1, 1])
+            # layer_norm_w = tf.nn.softmax(layer_norm_w)
+            # doc_outputs = tf.concat(doc_outputs_concat, axis = 1) * layer_norm_w
+            # doc_outputs = tf.reshape(doc_outputs, shape = [-1, doc_outputs.get_shape()[2], doc_outputs.get_shape()[1] * doc_outputs.get_shape()[-1]])
+            doc_outputs = tf.concat(doc_outputs_concat, axis = -1)
             doc_last_states = tf.concat(doc_last_states, axis = -1)
             doc_last_states = tf.reshape(doc_last_states, shape = [-1, doc_last_states.get_shape()[0] * doc_last_states.get_shape()[2]])
             doc_outputs_dropped = tf.nn.dropout(doc_outputs, keep_prob = self.args.keep_prob)
