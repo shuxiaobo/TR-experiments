@@ -137,22 +137,22 @@ class NLPBase(object):
         # hyper-parameters
         group3 = parser.add_argument_group("3.Hyper parameters shared by all models")
 
-        group3.add_argument("--use_char_embedding", default = False, type = str2bool,
+        group3.add_argument("--use_char_embedding", default = True, type = str2bool,
                             help = "use character embedding or not")
 
-        group3.add_argument("--char_embedding_dim", default = 30, type = int, help = "dimension of char embeddings")
+        group3.add_argument("--char_embedding_dim", default = 10, type = int, help = "dimension of char embeddings")
 
         group3.add_argument("--char_hidden_size", default = 10, type = int, help = "dimension of char embedding hidden size")
 
-        group3.add_argument("--max_char_len", default = 20, type = int, help = "the max char length of words")
+        group3.add_argument("--max_char_len", default = 10, type = int, help = "the max char length of words")
 
-        group3.add_argument("--embedding_dim", default = 100, type = int, help = "dimension of word embeddings")
+        group3.add_argument("--embedding_dim", default = 300, type = int, help = "dimension of word embeddings")
 
-        group3.add_argument("--hidden_size", default = 64, type = int, help = "RNN hidden size")
+        group3.add_argument("--hidden_size", default = 128, type = int, help = "RNN hidden size")
 
         group3.add_argument("--grad_clipping", default = 0, type = int, help = "the threshold value of gradient clip")
 
-        group3.add_argument("--lr", default = 1e-3, type = float, help = "learning rate")
+        group3.add_argument("--lr", default = 1e-5, type = float, help = "learning rate")
 
         group3.add_argument("--keep_prob", default = 0.5, type = float, help = "dropout,percentage to keep during training")
 
