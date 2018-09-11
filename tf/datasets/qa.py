@@ -247,13 +247,13 @@ class QADataSetBase():
     @staticmethod
     def gen_dictionary(data, dict_path, exclude_n = 10, max_size = 10000, word2id = None):
         word2id = dict() if not word2id else word2id
-
+        word2id_new = dict()
         for i, d in enumerate(data):
             for j, s in enumerate(d):
-                if s not in word2id.keys():
-                    word2id.setdefault(s, 0)
-                word2id[s] = word2id[s] + 1
-        c = Counter(word2id)
+                if s not in word2id_new.keys():
+                    word2id_new.setdefault(s, 0)
+                word2id_new[s] = word2id_new[s] + 1
+        c = Counter(word2id_new)
         rs = c.most_common()
         word2id = dict(word2id, **{k[0]: v for v, k in enumerate(rs[exclude_n:max_size + exclude_n])})
         with open(dict_path, mode = 'w+', encoding = 'utf-8') as f:
@@ -264,13 +264,14 @@ class QADataSetBase():
     @staticmethod
     def gen_char_dictionary(data, dict_path, exclude_n = 10, max_size = 10000, char2id = None):
         char2id = dict() if not char2id else char2id
+        char2id_new = dict()
         for i, d in enumerate(data):
             for j, s in enumerate(d):
                 for k, q in enumerate(s):
-                    if not char2id.get(q):
-                        char2id.setdefault(q, 0)
-                    char2id[q] += 1
-        c = Counter(char2id)
+                    if not char2id_new.get(q):
+                        char2id_new.setdefault(q, 0)
+                    char2id_new[q] += 1
+        c = Counter(char2id_new)
         rs = c.most_common()
         char2id = dict(char2id, **{k[0]: v for v, k in enumerate(rs[exclude_n:max_size + exclude_n])})
         with open(dict_path, mode = 'w+', encoding = 'utf-8') as f:
@@ -282,24 +283,28 @@ class QADataSetBase():
         if not path:
             path = self.args.tmp_dir + self.__class__.__name__
         word2id, char2id = None, None
-        if os.path.isfile(os.path.join(path, self.args.word_file)) and os.path.getsize(os.path.join(path, self.args.word_file)) > 0:
+        word_file_exit = os.path.isfile(os.path.join(path, self.args.word_file)) and os.path.getsize(os.path.join(path, self.args.word_file)) > 0
+        char_file_exit = os.path.isfile(os.path.join(path, self.args.char_file)) and os.path.getsize(
+            os.path.join(path, self.args.char_file)) > 0
+        if not word_file_exit or not char_file_exit:
+            word2id, char2id = self.prepare_dict(path, exclude_n = exclude_n, max_size = max_size)
+            logger('Word2id size : %d, Char2id size : %d' % len(word2id), len(char2id))
+            return word2id, char2id, path
+        if word_file_exit:
             word2id = {self._PAD: self._PAD_ID, self._UNKOWN: self._UNKOWN_ID}
             with open(os.path.join(path, self.args.word_file), mode = 'r', encoding = 'utf-8') as f:
                 for i in range(exclude_n): f.readline()
                 for i in range(exclude_n, max_size + exclude_n):
                     l = f.readline().strip()
                     word2id.setdefault(l, len(word2id))
-        if self.args.use_char_embedding and os.path.isfile(os.path.join(path, self.args.char_file)) and os.path.getsize(
-                os.path.join(path, self.args.char_file)) > 0:
+        if self.args.use_char_embedding and char_file_exit:
             char2id = {self._PAD: self._PAD_ID, self._UNKOWN: self._UNKOWN_ID}
             with open(os.path.join(path, self.args.char_file), mode = 'r', encoding = 'utf-8') as f:
                 for i in range(exclude_n): f.readline()
                 for i in range(exclude_n, max_size + exclude_n):
                     l = f.readline()
                     char2id.setdefault(l.strip(), len(char2id))
-        else:
-            word2id, char2id = self.prepare_dict(path, exclude_n = exclude_n, max_size = max_size)
-        logger('Word2id size : %d' % len(word2id))
+        logger('Word2id size : %d, Char2id size : %d' % len(word2id), len(char2id))
         return word2id, char2id, path
 
     def getitem(self, dataset, index):

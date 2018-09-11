@@ -175,14 +175,13 @@ class QA(ModelBase):
             doc_outputs = tf.concat(doc_outputs_concat, axis = -1)
             doc_last_states = tf.concat(doc_last_states, axis = -1)
             doc_last_states = tf.reshape(doc_last_states, shape = [-1, doc_last_states.get_shape()[0] * doc_last_states.get_shape()[2]])
-            doc_outputs_dropped = tf.nn.dropout(doc_outputs, keep_prob = self.args.keep_prob)
             doc_last_states_dropped = tf.nn.dropout(doc_last_states, keep_prob = self.args.keep_prob)
 
             doc_encoded = doc_outputs
         with tf.variable_scope("attention") as scp:
-            bi_att_w = tf.get_variable('bi_att_w', shape = [doc_outputs_dropped.get_shape()[-1], query_encoded.get_shape()[-1]])
+            bi_att_w = tf.get_variable('bi_att_w', shape = [doc_encoded.get_shape()[-1], query_encoded.get_shape()[-1]])
             doc_out_query_last_att = nn_ops.softmax(
-                tf.squeeze(math_ops.matmul(special_math_ops.einsum('bij,jk->bik', doc_outputs_dropped, bi_att_w), tf.expand_dims(query_encoded, axis = -1)),
+                tf.squeeze(math_ops.matmul(special_math_ops.einsum('bij,jk->bik', doc_encoded, bi_att_w), tf.expand_dims(query_encoded, axis = -1)),
                            -1),
                 axis = -1)
 

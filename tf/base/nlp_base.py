@@ -108,7 +108,7 @@ class NLPBase(object):
         group2.add_argument("--embedding_file", default = "data/glove.6B/glove.6B.100d.txt",
                             type = str_or_none, help = "pre-trained embedding file")
 
-        group2.add_argument("--num_words", default = 15000, type = int, help = "the max number of words in vocabulary")
+        group2.add_argument("--num_words", default = 35000, type = int, help = "the max number of words in vocabulary")
 
         group2.add_argument("--skip_top", default = 20, type = int, help = "the max number of words in vocabulary")
 
@@ -140,11 +140,11 @@ class NLPBase(object):
         group3.add_argument("--use_char_embedding", default = False, type = str2bool,
                             help = "use character embedding or not")
 
-        group3.add_argument("--char_embedding_dim", default = 10, type = int, help = "dimension of char embeddings")
+        group3.add_argument("--char_embedding_dim", default = 20, type = int, help = "dimension of char embeddings")
 
-        group3.add_argument("--char_hidden_size", default = 10, type = int, help = "dimension of char embedding hidden size")
+        group3.add_argument("--char_hidden_size", default = 20, type = int, help = "dimension of char embedding hidden size")
 
-        group3.add_argument("--max_char_len", default = 10, type = int, help = "the max char length of words")
+        group3.add_argument("--max_char_len", default = 20, type = int, help = "the max char length of words")
 
         group3.add_argument("--embedding_dim", default = 300, type = int, help = "dimension of word embeddings")
 
@@ -158,7 +158,7 @@ class NLPBase(object):
 
         group3.add_argument("--l2", default = 0.005, type = float, help = "l2 regularization weight")
 
-        group3.add_argument("--num_layers", default = 2, type = int, help = "RNN layer number")
+        group3.add_argument("--num_layers", default = 3, type = int, help = "RNN layer number")
 
         group3.add_argument("--rnn_type", default = "gru", type = str_or_none,
                             help = "RNN type, use GRU, LSTM, vanilla rnn, modified rnn, indrnn")
@@ -179,7 +179,7 @@ class NLPBase(object):
         # -----------------------------------------------------------------------------------------------------------
         group4 = parser.add_argument_group("4.model [{}] specific parameters".format(self.model_name))
 
-        group4.add_argument("--activation", default = 'tanh', type = str, help = "activation for rnn")
+        group4.add_argument("--activation", default = 'relu', type = str, help = "activation for rnn")
         self.add_args(group4)
 
         args = parser.parse_args()
