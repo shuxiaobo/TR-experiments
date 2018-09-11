@@ -150,7 +150,7 @@ class QA(ModelBase):
             if self.args.use_char_embedding:
                 doc_embed = tf.concat([doc_embed, d_char_out], -1)
             qry_encoded_dupli = tf.tile(tf.expand_dims(query_encoded, 1), multiples = [1, self.dataset.doc_max_len, 1])
-            doc_embed = tf.concat([doc_embed, qry_encoded_dupli], -1)
+            doc_embed = tf.nn.dropout(tf.concat([doc_embed, qry_encoded_dupli], -1), keep_prob = self.args.keep_prob)
 
             doc_inputs = doc_embed
             doc_outputs_concat = list()
@@ -178,6 +178,7 @@ class QA(ModelBase):
             doc_outputs_dropped = tf.nn.dropout(doc_outputs, keep_prob = self.args.keep_prob)
             doc_last_states_dropped = tf.nn.dropout(doc_last_states, keep_prob = self.args.keep_prob)
 
+            doc_encoded = doc_outputs
         with tf.variable_scope("attention") as scp:
             bi_att_w = tf.get_variable('bi_att_w', shape = [doc_outputs_dropped.get_shape()[-1], query_encoded.get_shape()[-1]])
             doc_out_query_last_att = nn_ops.softmax(
@@ -185,7 +186,7 @@ class QA(ModelBase):
                            -1),
                 axis = -1)
 
-            doc_atted = doc_outputs * tf.expand_dims(doc_out_query_last_att, -1)  # B * D * 2H
+            doc_atted = doc_encoded * tf.expand_dims(doc_out_query_last_att, -1)  # B * D * 2H
             doc_atted_max = math_ops.reduce_max(doc_atted, axis = -2)
 
         with tf.variable_scope("alter_encoder") as scp:
@@ -196,10 +197,11 @@ class QA(ModelBase):
             alter_embed_wxb = special_math_ops.einsum('bij,jk->bik', alter_embed_sumed, alter_w) + alter_b
             # alter_embed_wxb = alter_embed_wxb * tf.expand_dims(alt_mask, -1)
             # B * 3 * 2H
+            alter_encoded = tf.nn.dropout(alter_embed_wxb, keep_prob = self.args.keep_prob)
 
         with tf.variable_scope("classify") as scp:
             # result = tf.squeeze(math_ops.matmul(tf.expand_dims(doc_atted_max, -2), tf.transpose(alter_embed_wxb, perm = [0, 2, 1])), -2)
-            result = tf.reduce_sum(special_math_ops.einsum('bij,bjk->bik', alter_embed_wxb, tf.transpose(doc_atted, perm = [0, 2, 1])), -1)
+            result = tf.reduce_sum(special_math_ops.einsum('bij,bjk->bik', alter_encoded, tf.transpose(doc_atted, perm = [0, 2, 1])), -1)
 
         self.correct_prediction = tf.reduce_sum(tf.cast(tf.equal(tf.argmax(result, -1), answer), tf.int32))
 
