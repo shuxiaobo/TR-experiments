@@ -108,7 +108,7 @@ class NLPBase(object):
         group2.add_argument("--embedding_file", default = "data/glove.6B/glove.6B.100d.txt",
                             type = str_or_none, help = "pre-trained embedding file")
 
-        group2.add_argument("--num_words", default = 35000, type = int, help = "the max number of words in vocabulary")
+        group2.add_argument("--num_words", default = 105000, type = int, help = "the max number of words in vocabulary")
 
         group2.add_argument("--skip_top", default = 20, type = int, help = "the max number of words in vocabulary")
 
@@ -163,7 +163,7 @@ class NLPBase(object):
         group3.add_argument("--rnn_type", default = "gru", type = str_or_none,
                             help = "RNN type, use GRU, LSTM, vanilla rnn, modified rnn, indrnn")
 
-        group3.add_argument("--batch_size", default = 356, type = int, help = "batch_size")
+        group3.add_argument("--batch_size", default = 256, type = int, help = "batch_size")
 
         group3.add_argument("--bidirectional", default = 'true', type = str2bool, help = "whether bidirectional for rnn")
 

@@ -15,7 +15,7 @@ from tensorflow.python.ops import special_math_ops
 from tensorflow.contrib.rnn import MultiRNNCell, LSTMCell, GRUCell, RNNCell, DropoutWrapper
 
 
-class QA(ModelBase):
+class QA2(ModelBase):
 
     def create_model(self):
         document = tf.placeholder(dtype = tf.int64, shape = [None, self.dataset.doc_max_len], name = "document")
@@ -127,16 +127,25 @@ class QA(ModelBase):
             query_embed = tf.nn.embedding_lookup(embedding_matrix, query)
             if self.args.use_char_embedding:
                 query_embed = tf.concat([query_embed, q_char_out], -1)
-            cell_fw = MultiRNNCell([CELL(num_units = self.args.hidden_size, activation = activation) for _ in range(self.args.num_layers)])
-            cell_bw = MultiRNNCell([CELL(num_units = self.args.hidden_size, activation = activation) for _ in range(self.args.num_layers)])
 
-            query_outputs, query_last_states = tf.nn.bidirectional_dynamic_rnn(cell_fw = cell_fw, cell_bw = cell_bw, inputs = query_embed,
-                                                                               sequence_length = query_length,
-                                                                               initial_state_fw = None, initial_state_bw = None,
-                                                                               dtype = tf.float32, parallel_iterations = None,
-                                                                               swap_memory = True, time_major = False, scope = None)
-            query_outputs = tf.concat(query_outputs, axis = -1)
-            query_last_states = tf.concat(query_last_states, axis = -1)
+            query_inputs = query_embed
+            query_last_states_concat = list()
+            query_outputs_concat = list()
+            for i in range(self.args.num_layers):
+                cell_fw = MultiRNNCell([CELL(num_units = self.args.hidden_size, activation = activation, name = 'rnn_fw_%d' % i)])
+                cell_bw = MultiRNNCell([CELL(num_units = self.args.hidden_size, activation = activation, name = 'rnn_fw_%d' % i)])
+
+                query_outputs, query_last_states = tf.nn.bidirectional_dynamic_rnn(cell_fw = cell_fw, cell_bw = cell_bw, inputs = query_inputs,
+                                                                                   sequence_length = query_length,
+                                                                                   initial_state_fw = None, initial_state_bw = None,
+                                                                                   dtype = tf.float32, parallel_iterations = None,
+                                                                                   swap_memory = True, time_major = False, scope = None)
+                query_last_states_concat.extend(query_last_states)
+                query_outputs_concat.extend(query_outputs)
+                query_inputs = tf.concat([query_embed, tf.concat(query_outputs, -1)], -1)
+
+            query_outputs = tf.concat(query_outputs_concat, axis = -1)
+            query_last_states = tf.concat(query_last_states_concat, axis = -1)
             query_last_states = tf.reshape(query_last_states, shape = [-1, query_last_states.get_shape()[0] * query_last_states.get_shape()[2]])
             query_outputs_dropped = tf.nn.dropout(query_outputs, keep_prob = self.args.keep_prob)
             query_last_states_dropped = query_last_states

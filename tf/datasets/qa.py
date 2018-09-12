@@ -282,13 +282,13 @@ class QADataSetBase():
     def get_word_index(self, path = None, exclude_n = 10, max_size = 10000):
         if not path:
             path = self.args.tmp_dir + self.__class__.__name__
-        word2id, char2id = None, None
+        word2id, char2id = dict(), dict()
         word_file_exit = os.path.isfile(os.path.join(path, self.args.word_file)) and os.path.getsize(os.path.join(path, self.args.word_file)) > 0
         char_file_exit = os.path.isfile(os.path.join(path, self.args.char_file)) and os.path.getsize(
             os.path.join(path, self.args.char_file)) > 0
         if not word_file_exit or not char_file_exit:
             word2id, char2id = self.prepare_dict(path, exclude_n = exclude_n, max_size = max_size)
-            logger('Word2id size : %d, Char2id size : %d' % len(word2id), len(char2id))
+            logger('Word2id size : %d, Char2id size : %d' % (len(word2id), len(char2id)))
             return word2id, char2id, path
         if word_file_exit:
             word2id = {self._PAD: self._PAD_ID, self._UNKOWN: self._UNKOWN_ID}
@@ -304,7 +304,7 @@ class QADataSetBase():
                 for i in range(exclude_n, max_size + exclude_n):
                     l = f.readline()
                     char2id.setdefault(l.strip(), len(char2id))
-        logger('Word2id size : %d, Char2id size : %d' % len(word2id), len(char2id))
+        logger('Word2id size : %d, Char2id size : %d' % (len(word2id), len(char2id)))
         return word2id, char2id, path
 
     def getitem(self, dataset, index):
