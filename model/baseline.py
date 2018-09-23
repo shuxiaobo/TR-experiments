@@ -29,10 +29,10 @@ class BaseLineRNN(BaseModel):
         self.stride = stride
 
         self.embedding = nn.Embedding(vocabulary_size, embedding_size)
-        # self.rnn = nn.GRU(embedding_size, hidden_size, num_layers = rnn_layers, bias = False, bidirectional = bidirection, batch_first = True)
+        self.rnn = nn.GRU(embedding_size, hidden_size, num_layers = rnn_layers, bias = False, bidirectional = bidirection, batch_first = True)
         # self.rnn = nn.RNN(embedding_size, hidden_size, num_layers = rnn_layers, bias = False, bidirectional = bidirection, batch_first = True)
-        self.rnn = BaseRNN(args, input_size = embedding_size, hidden_size = hidden_size, n_layer = rnn_layers, bidirectional = bidirection, batch_first = True,
-                           nonlinearity = args.activation)
+        # self.rnn = BaseRNN(args, input_size = embedding_size, hidden_size = hidden_size, n_layer = rnn_layers, bidirectional = bidirection, batch_first = True,
+        #                    nonlinearity = args.activation)
         # self.rnn = IndRNN(args, input_size = embedding_size, hidden_size = hidden_size, n_layer = rnn_layers, bidirectional = bidirection, batch_first = True)
         self.linear = nn.Linear(hidden_size * 2 if bidirection else hidden_size, num_class, bias = False)
         self.dropout = nn.Dropout(p = self.args.keep_prob)

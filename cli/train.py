@@ -17,6 +17,8 @@ from datasets.imdb import IMDB
 from model.baseline import BaseLineRNN
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader
+from model.fusion.fusion_model1 import FusionModel
+from model.fusion.fusion_ngram import FusionNGramRNN
 
 logging.basicConfig(level = logging.DEBUG, format = '%(asctime)s %(filename)s[line:%(lineno)d]： %(message)s', datefmt = '%Y-%m-%d %I:%M:%S')
 
@@ -28,7 +30,7 @@ def train(args):
     iter = 0
     logger('Begin training...')
     logger_path = '../logs/log-av%s-%s-model%s-emb%d-id%s' % (
-        args.activation, args.dataset, model.rnn.__class__.__name__, args.embedding_dim, str(datetime.datetime.now()))
+        args.activation, args.dataset, model.__class__.__name__, args.embedding_dim, str(datetime.datetime.now()))
     logger('Save log to %s' % logger_path)
     writer = SummaryWriter(log_dir = logger_path)
     for i in range(args.num_epoches):
@@ -195,7 +197,10 @@ def init_from_scrach(args):
     logging.info('Test data max length : %d' % test_dataset.max_len)
 
     logging.info('Initiating the model...')
-    model = BaseLineRNN(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
+    # model = FusionModel(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
+    #                     num_layers = args.num_layers,
+    #                     bidirection = args.bidirectional, num_class = train_dataset.num_class)
+    model = FusionNGramRNN(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
                         rnn_layers = args.num_layers,
                         bidirection = args.bidirectional, kernel_size = args.kernel_size, stride = args.stride, num_class = train_dataset.num_class)
     model.cuda()

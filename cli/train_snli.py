@@ -16,6 +16,8 @@ from datasets.binary import *
 from datasets.snli import SNLI
 from model.layers import ClassifyNet
 from tensorboardX import SummaryWriter
+from model.fusion.fusion_model1 import FusionModel
+from model.fusion.fusion_ngram import FusionNGramRNN
 
 logging.basicConfig(level = logging.DEBUG, format = '%(asctime)s %(filename)s[line:%(lineno)d]： %(message)s', datefmt = '%Y-%m-%d %I:%M:%S')
 
@@ -107,15 +109,21 @@ def init_from_scrach(args):
     logging.info('Test data max length : %d' % test_dataset.max_len)
 
     logging.info('Initiating the model...')
-    model = BaseLineRNN(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
-                        rnn_layers = args.num_layers,
-                        bidirection = args.bidirectional, kernel_size = args.kernel_size, stride = args.stride, num_class = train_dataset.num_class)
+    # model = BaseLineRNN(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
+    #                     rnn_layers = args.num_layers,
+    #                     bidirection = args.bidirectional, kernel_size = args.kernel_size, stride = args.stride, num_class = train_dataset.num_class)
     # model = NGramRNN3(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
     #                     rnn_layers = args.num_layers,
     #                     bidirection = args.bidirectional, kernel_size = args.kernel_size, stride = args.stride, num_class = train_dataset.num_class)
+    # model = FusionModel(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
+    #                     num_layers = args.num_layers,
+    #                     bidirection = args.bidirectional, num_class = train_dataset.num_class)
+    model = FusionNGramRNN(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
+                           rnn_layers = args.num_layers,
+                           bidirection = args.bidirectional, kernel_size = args.kernel_size, stride = args.stride, num_class = train_dataset.num_class)
     model.cuda()
     model.init_optimizer()
-    model2 = ClassifyNet(args = args, input_size = args.hidden_size * 2 if args.bidirectional else args.hidden_size, num_cls = train_dataset.num_class)
+    model2 = ClassifyNet(args = args, input_size = args.hidden_size * 2 * args.num_layers if args.bidirectional else args.hidden_size, num_cls = train_dataset.num_class)
     model2.cuda()
     model2.init_optimizer()
     logging.info('Model {} initiate over...'.format(model.__class__.__name__))

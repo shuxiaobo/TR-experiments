@@ -50,7 +50,7 @@ class BaseRNNCell(nn.Module):
             self.bias_ih = Parameter(torch.randn(hidden_size))
         else:
             self.register_parameter('bias_ih', None)
-        self.reset_parameters()
+        # self.reset_parameters()
 
     def reset_parameters(self):
         stdv = 1.0 / math.sqrt(self.hidden_size)

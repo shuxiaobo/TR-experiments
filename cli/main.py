@@ -67,9 +67,9 @@ def main():
     # train hyper-parameters
     group3 = parser.add_argument_group("3. train common hyper-parameters for model")
 
-    group3.add_argument("--batch_size", default = 256, type = int, help = "batch size for train")
+    group3.add_argument("--batch_size", default = 128, type = int, help = "batch size for train")
 
-    group3.add_argument("--lr", default = 1e-4, type = float, help = "lr for model learning")
+    group3.add_argument("--lr", default = 3e-3, type = float, help = "lr for model learning")
 
     group3.add_argument("--keep_prob", default = 0.5, type = float, help = "the keep prob")
 
@@ -77,7 +77,7 @@ def main():
 
     group3.add_argument("--hidden_size", default = 100, type = int, help = "RNN hidden size")
 
-    group3.add_argument("--embedding_dim", default = 100, type = int, help = "dimension of word embeddings")
+    group3.add_argument("--embedding_dim", default = 200, type = int, help = "dimension of word embeddings")
 
     group3.add_argument("--grad_clipping", default = 0, type = int, help = "the threshold value of gradient clip")
 
@@ -96,13 +96,13 @@ def main():
 
     group4.add_argument('--bidirectional', default = True, type = bool, help = 'Use the bi-directional rnn.')
 
-    group4.add_argument('--task', default = 0, type = int, help = 'task 1 for nli, 0 for classify')
+    group4.add_argument('--task', default = 1, type = int, help = 'task 1 for nli, 0 for classify')
 
-    group4.add_argument('--num_layers', default = 1, type = int, help = 'number of layers')
+    group4.add_argument('--num_layers', default = 3, type = int, help = 'number of layers')
 
     group4.add_argument('--activation', default = 'relu', type = str, help = 'activation function for RNN ')
 
-    group4.add_argument('--dataset', default = 'CR', type = str, help = 'activation function for RNN ')
+    group4.add_argument('--dataset', default = 'SNLI', type = str, help = 'activation function for RNN ')
 
     args = parser.parse_args()
 

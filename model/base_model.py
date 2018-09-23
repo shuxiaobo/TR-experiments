@@ -28,7 +28,7 @@ class BaseModel(nn.Module):
 
     def init_optimizer(self):
         if self.args.optimizer.lower() == 'adam':
-            self.optimizer = Adam(self.parameters(), lr = self.args.lr)
+            self.optimizer = Adam(self.parameters(), lr = self.args.lr, weight_decay = 1e-3)
         elif self.args.optimizer.lower() == 'sgd':
             self.optimizer = SGD(self.parameters(), lr = self.args.lr, weight_decay = 0.99999)
         elif self.args.optimizer.lower() == 'adad':
@@ -89,4 +89,9 @@ class BaseModel(nn.Module):
         :param label:
         :return:
         """
-        return torch.argmax(torch.eq(torch.argmax(pred, dim = -1), label), dim = -1)
+        loss = torch.argmax(torch.eq(torch.argmax(pred, dim = -1), label), dim = -1)
+        # for name, param in self.named_parameters():
+        #     if name.endswith('hh') or name.endswith('ih'):
+        #         loss = loss + 1e-3 * torch.norm(param)
+
+        return loss

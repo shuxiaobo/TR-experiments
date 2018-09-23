@@ -108,7 +108,7 @@ class NLPBase(object):
         group2.add_argument("--embedding_file", default = "data/glove.6B/glove.6B.100d.txt",
                             type = str_or_none, help = "pre-trained embedding file")
 
-        group2.add_argument("--num_words", default = 105000, type = int, help = "the max number of words in vocabulary")
+        group2.add_argument("--num_words", default = 35000, type = int, help = "the max number of words in vocabulary")
 
         group2.add_argument("--skip_top", default = 0, type = int, help = "the max number of words in vocabulary")
 
