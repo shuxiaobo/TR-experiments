@@ -5,10 +5,9 @@ from __future__ import absolute_import
 import tensorflow as tf
 from .layers import IndRNNCell
 from .layers import ModifiedRNNCell
-from tf.base.rnn_base import ModelBase
+from base.rnn_base import ModelBase
 from tensorflow.python.ops import nn_ops
 from tensorflow.python.ops import math_ops
-from tensorflow.contrib.rnn import MultiRNNCell
 from tensorflow.contrib.rnn import MultiRNNCell, LSTMCell, GRUCell, RNNCell
 
 

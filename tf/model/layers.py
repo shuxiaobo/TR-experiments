@@ -180,16 +180,16 @@ class VanillaRNNCell(LayerRNNCell):
 
 class ClassifiedNet():
 
-    def __init__(self, input_size, output_size):
-        self.input_size = input_size
+    def __init__(self, output_size):
         self.output_size = output_size
 
-    def call(self, x, y):
+    def __call__(self, x, y):
         with tf.variable_scope(name_or_scope = 'classify', reuse = False) as sc:
             feature = tf.concat([x, y, x - y, x * y], -1)
 
-            w = tf.get_variable('w', shape = [self.input_size, self.output_size], dtype = tf.float32, initializer = tf.random_uniform_initializer)
+            w = tf.get_variable('w', shape = [feature.get_shape()[-1], self.output_size], dtype = tf.float32, initializer = tf.random_uniform_initializer)
             bias = tf.get_variable('bias', shape = [self.output_size], initializer = tf.random_uniform_initializer, dtype = tf.float32)
 
-            cls_result = tf.nn.xw_plus_b(x = feature, weights = w, bias = bias)
+            cls_result = tf.nn.xw_plus_b(x = feature, weights = w, biases = bias)
+            # cls_result = tf.einsum('bij,jk->bik', feature, w)
         return cls_result

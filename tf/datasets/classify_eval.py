@@ -197,7 +197,7 @@ class TREC(ClassifierEval):
 class SST(ClassifierEval):
     def __init__(self, args, nclasses = 5, seed = 1111):
         self.seed = seed
-
+        self.nclasses = nclasses
         # binary of fine-grained
         assert nclasses in [2, 5]
         self.task_name = 'Binary' if self.nclasses == 2 else 'Fine-Grained'

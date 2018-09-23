@@ -4,6 +4,7 @@
 from tf.model.modified_rnn import ModifiedRNN
 from tf.model.qa import QA
 from tf.model.qa2 import QA2
+from tf.model.funsion import Fusion
 
 
-__all__ = ["ModifiedRNN", "QA", "QA2"]
+__all__ = ["ModifiedRNN", "QA", "QA2", "Fusion"]

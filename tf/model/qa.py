@@ -3,16 +3,15 @@
 # Created by ShaneSue on 2018/9/8
 import os
 import tensorflow as tf
-from tf.base.rnn_base import ModelBase
+from base.rnn_base import ModelBase
 from tf.model.layers import IndRNNCell
 from tensorflow.python.ops import nn_ops
-from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import math_ops
+from tf.model.layers import VanillaRNNCell
 from tensorflow.python.ops import embedding_ops
 from tf.model.modified_rnn import ModifiedRNNCell
-from tf.model.layers import VanillaRNNCell
 from tensorflow.python.ops import special_math_ops
-from tensorflow.contrib.rnn import MultiRNNCell, LSTMCell, GRUCell, RNNCell, DropoutWrapper
+from tensorflow.contrib.rnn import MultiRNNCell, LSTMCell, GRUCell
 
 
 class QA(ModelBase):
@@ -156,8 +155,10 @@ class QA(ModelBase):
             doc_outputs_concat = list()
 
             for i in range(self.args.num_layers):
-                cell_fw = MultiRNNCell([CELL(num_units = self.args.hidden_size, activation = activation, name = 'rnn_fw_%d' % i)])
-                cell_bw = MultiRNNCell([CELL(num_units = self.args.hidden_size, activation = activation, name = 'rnn_fw_%d' % i)])
+                cell_fw = MultiRNNCell(
+                    [CELL(num_units = self.args.hidden_size, activation = activation, name = 'rnn_fw_%d' % i)])
+                cell_bw = MultiRNNCell(
+                    [CELL(num_units = self.args.hidden_size, activation = activation, name = 'rnn_fw_%d' % i)])
                 doc_outputs, doc_last_states = tf.nn.bidirectional_dynamic_rnn(cell_fw = cell_fw, cell_bw = cell_bw, inputs = doc_inputs,
                                                                                sequence_length = doc_length,
                                                                                initial_state_fw = None, initial_state_bw = None,
@@ -199,8 +200,11 @@ class QA(ModelBase):
             alter_encoded = tf.nn.dropout(alter_embed_wxb, keep_prob = self.args.keep_prob)
 
         with tf.variable_scope("classify") as scp:
-            result = tf.squeeze(math_ops.matmul(tf.expand_dims(doc_atted_max, -2), tf.transpose(alter_embed_wxb, perm = [0, 2, 1])), -2)
-            # result = tf.reduce_sum(special_math_ops.einsum('bij,bjk->bik', alter_encoded, tf.transpose(doc_atted, perm = [0, 2, 1])), -1)
+            # clsy = ClassifiedNet(input_size = doc_atted_max.get_shape()[-1], output_size = 3)
+            # clsy_x = tf.tile(tf.expand_dims(doc_atted_max, 1), [1, alter_encoded.get_shape()[1], 1])
+            # result = tf.reduce_sum(clsy(clsy_x, alter_encoded), -2)
+            # result = tf.squeeze(math_ops.matmul(tf.expand_dims(doc_atted_max, -2), tf.transpose(alter_embed_wxb, perm = [0, 2, 1])), -2)
+            result = tf.reduce_sum(special_math_ops.einsum('bij,bjk->bik', alter_encoded, tf.transpose(doc_atted, perm = [0, 2, 1])), -1)
 
         self.correct_prediction = tf.reduce_sum(tf.cast(tf.equal(tf.argmax(result, -1), answer), tf.int32))
 

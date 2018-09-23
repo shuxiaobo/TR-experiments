@@ -18,12 +18,12 @@ from utils.util import logger, prepare_split, write_file
 
 
 def default_tokenizer(sentence):
-    _DIGIT_RE = re.compile(r"\d+")
-    sentence = _DIGIT_RE.sub("0", sentence)  # digital replace. because the answer contain the number
-    # _DIGIT_RE = re.compile(r"^[A-Za-z]+$")
-    # sentence = _DIGIT_RE.sub("a", sentence)  # No char replace. because the answer donnot contain the char
+    # _DIGIT_RE = re.compile(r"\d+")
+    # sentence = _DIGIT_RE.sub("0", sentence)  # digital replace. because the answer contain the number
+    # _CHAR_RE = re.compile(r"[A-Za-z]+$")
+    # sentence = _CHAR_RE.sub("a", sentence)  # No char replace. because the answer donnot contain the char
     _NOCHINESE_RE = re.compile(r"[^\w\u4e00-\u9fff]+")
-    sentence = _NOCHINESE_RE.sub(" ", sentence)
+    sentence = _NOCHINESE_RE.sub(" E", sentence)
     # sentence = " ".join(sentence.split("|"))
     return list(jieba.cut(sentence))
 
@@ -54,7 +54,7 @@ class QADataSetBase():
         self.max_len = 0  # will be updated when load the train and test file
         self.num_class = num_class
         self.train_x, self.train_y, self.valid_x, self.valid_y, self.test_x, self.test_y = self.load_data(file_name)
-
+        # self.test_x, self.test_y = self.valid_x, self.valid_y
         # for doc
         train_max, train_mean, train_min = self.statistic_len(self.train_x[0])
         valid_max, valid_mean, valid_min = self.statistic_len(self.valid_x[0])
@@ -95,7 +95,7 @@ class QADataSetBase():
 
         # load the valid
         valid_x, valid_y = self.load_file(os.path.join(self.args.tmp_dir, self.__class__.__name__, file_name + self.args.valid_file))
-        valid_x, valid_y = QADataSetBase.sort_corpus(valid_x, valid_y)
+        # valid_x, valid_y = QADataSetBase.sort_corpus(valid_x, valid_y)
 
         # load the test
         test_x, test_y = self.load_file(os.path.join(self.args.tmp_dir, self.__class__.__name__, file_name + self.args.test_file))
@@ -159,6 +159,9 @@ class QADataSetBase():
         data_alt = list()
         data_alt_not_cut = list()
 
+        data_anwser = list()
+        data_anwser_split = list()
+
         alt_les = list()
         if not os.path.exists(fpath + '.txt'):
             logger("Preprocess the json data . cut the chinese...")
@@ -183,6 +186,9 @@ class QADataSetBase():
 
                     if "answer" in line:
                         ans_tmp = alt_tmp.index(line["answer"])
+
+                        data_anwser.append(line["answer"])
+                        data_anwser_split.append(list(jieba.cut(line["answer"])))
                     else:
                         ans_tmp = -1
                     data_ans.append(ans_tmp)
@@ -197,7 +203,7 @@ class QADataSetBase():
                     logging.error("Deal the input line error" + '：' + line)
                     continue
                 passage = list(line["passage"].split(' '))
-                passage = passage[:200]
+                passage = passage[:100]
                 alt = []
                 alt_tmp = line["alternatives"].split('|')
                 if len(alt_tmp) != 3:
@@ -221,12 +227,21 @@ class QADataSetBase():
 
                 if "answer" in line:
                     ans_tmp = alt_tmp.index(line["answer"])
+
+                    data_anwser.append(line["answer"])
+                    data_anwser_split.append(list(jieba.cut(line["answer"])))
                 else:
                     ans_tmp = -1
                 data_ans.append(ans_tmp)
 
         data_x = [data_doc, data_query, data_alt, data_query_id, data_alt_not_cut]
         data_y = data_ans
+        if fpath.endswith('train.json'):
+            self.data_ans = data_anwser
+            self.data_ans_split = data_anwser_split
+        elif fpath.endswith('test.json'):
+            self.data_ans_test = data_anwser
+            self.data_ans_test_split = data_anwser_split
         logger("Answers class most common : %s" % str(Counter(data_ans).most_common()))
         self.alt_max_len = max(self.alt_max_len, max(alt_les))
         logger("Load the data over, size: %d..., alt length : %d" % (len(data_ans), self.alt_max_len))

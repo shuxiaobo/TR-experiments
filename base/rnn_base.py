@@ -150,6 +150,10 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
             step = self.sess.run(self.step)
             # on Epoch start
             data, samples = self.get_batch_data("train", step % batch_num)
+
+            # TODO : here can be remove if the test being desperated
+            data = dict(data, **{'keep_prob:0': self.args.keep_prob})
+
             loss, _, corrects = self.sess.run([self.loss, self.train_op, self.correct_prediction],
                                               feed_dict = data)
             corrects_in_epoch += corrects.item()
@@ -190,6 +194,10 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
         val_num, val_corrects, v_loss = 0, 0, 0
         for i in range(v_batch_num):
             data, samples = self.get_batch_data("valid", i)
+
+            # TODO : here can be remove if the test being desperated
+            data = dict(data, **{'keep_prob:0': 1.})
+
             if samples != 0:
                 loss, v_correct = self.sess.run([self.loss, self.correct_prediction], feed_dict = data)
                 val_num += samples
@@ -244,6 +252,10 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
         result = list()
         for i in range(batch_num):
             data, samples = self.get_batch_data("test", i)
+
+            # TODO : here can be remove if the test being desperated
+            data = dict(data, **{'keep_prob:0': 1.})
+
             if samples != 0:
                 correct, pred = self.sess.run([self.correct_prediction, self.prediction], feed_dict = data)
                 correct_num, total_num = correct_num + correct, total_num + samples

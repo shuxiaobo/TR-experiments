@@ -110,7 +110,7 @@ class NLPBase(object):
 
         group2.add_argument("--num_words", default = 105000, type = int, help = "the max number of words in vocabulary")
 
-        group2.add_argument("--skip_top", default = 20, type = int, help = "the max number of words in vocabulary")
+        group2.add_argument("--skip_top", default = 0, type = int, help = "the max number of words in vocabulary")
 
         subgroup = group2.add_argument_group("Some default options related to dataset, don't change if it works")
 
@@ -126,7 +126,7 @@ class NLPBase(object):
         subgroup.add_argument("--test_file", default = "test_sub.txt", help = "test file, if use SQuAD, this arg will be ignore")
 
         subgroup.add_argument("--max_count", default = None, type = int_or_none,
-                              help = "read n lines of data file, if None, read all data")
+                              help = "read n lines of data file, if Nonqe, read all data")
 
         subgroup.add_argument("--word_file", default = 'word2id.txt', type = str_or_none,
                               help = "args.word_file")
@@ -150,15 +150,15 @@ class NLPBase(object):
 
         group3.add_argument("--hidden_size", default = 128, type = int, help = "RNN hidden size")
 
-        group3.add_argument("--grad_clipping", default = 0, type = int, help = "the threshold value of gradient clip")
+        group3.add_argument("--grad_clipping", default = 10, type = int, help = "the threshold value of gradient clip")
 
-        group3.add_argument("--lr", default = 1e-3, type = float, help = "learning rate")
+        group3.add_argument("--lr", default = 8e-4, type = float, help = "learning rate")
 
         group3.add_argument("--keep_prob", default = 0.5, type = float, help = "dropout,percentage to keep during training")
 
         group3.add_argument("--l2", default = 0.005, type = float, help = "l2 regularization weight")
 
-        group3.add_argument("--num_layers", default = 3, type = int, help = "RNN layer number")
+        group3.add_argument("--num_layers", default = 2, type = int, help = "RNN layer number")
 
         group3.add_argument("--rnn_type", default = "gru", type = str_or_none,
                             help = "RNN type, use GRU, LSTM, vanilla rnn, modified rnn, indrnn")
@@ -175,11 +175,11 @@ class NLPBase(object):
 
         group3.add_argument("--num_epoches", default = 100, type = int, help = "max epoch iterations")
 
-        group3.add_argument("--patience", default = 15, type = int, help = "early stopping patience")
+        group3.add_argument("--patience", default = 100, type = int, help = "early stopping patience")
         # -----------------------------------------------------------------------------------------------------------
         group4 = parser.add_argument_group("4.model [{}] specific parameters".format(self.model_name))
 
-        group4.add_argument("--activation", default = 'relu', type = str, help = "activation for rnn")
+        group4.add_argument("--activation", default = 'sin', type = str, help = "activation for rnn")
         self.add_args(group4)
 
         args = parser.parse_args()
