@@ -131,11 +131,11 @@ class ModifiedRNNCell(LayerRNNCell):
 
     def call(self, inputs, state):
         gate_inputs = math_ops.matmul(inputs, self._ih)
-        recurrent_update = math_ops.matmul(state, math_ops.matmul(self._hh, self._ih))
+        recurrent_update = math_ops.matmul(state, math_ops.sin(math_ops.matmul(self._hh, self._ih)))
         gate_inputs = math_ops.add(gate_inputs, recurrent_update)
         if self.bias:
             gate_inputs = nn_ops.bias_add(gate_inputs, self._bias)
-        output = self._activation(gate_inputs)
+        output =  gate_inputs
         return output, output
 
 

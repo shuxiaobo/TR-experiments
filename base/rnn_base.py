@@ -89,6 +89,8 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
 
         self.dataset = getattr(sys.modules["tf.datasets"], self.args.dataset)(self.args)
 
+        self.embedding_matrix = self.dataset.get_embedding_matrix(is_char_embedding = False)
+
         self.max_len = self.dataset.max_len
         self.word2id_size = self.dataset.word2id_size
         self.train_nums, self.valid_nums, self.test_num = self.dataset.train_nums, self.dataset.valid_nums, self.dataset.test_nums
@@ -229,7 +231,7 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
     def save_weight(self, val_acc, step):
         path = self.saver.save(self.sess,
                                os.path.join(self.args.weight_path,
-                                            "{}-val_acc-{:.4f}.models".format(self.model_name, val_acc)),
+                                            "{}-val_acc-{:.4f}.models-{}".format(self.model_name, val_acc, datetime.datetime.now())),
                                global_step = step)
         logger("Save models to {}.".format(path))
 

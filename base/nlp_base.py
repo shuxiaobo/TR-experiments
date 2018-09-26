@@ -105,7 +105,7 @@ class NLPBase(object):
         group2.add_argument("--dataset", default = "AIC", choices = sys.modules['tf.datasets'].__all__, type = str,
                             help = 'type of the dataset to load')
 
-        group2.add_argument("--embedding_file", default = "data/glove.6B/glove.6B.100d.txt",
+        group2.add_argument("--embedding_file", default = "../data/processed/AIC/word2vec.300d.txt",
                             type = str_or_none, help = "pre-trained embedding file")
 
         group2.add_argument("--num_words", default = 35000, type = int, help = "the max number of words in vocabulary")
@@ -152,7 +152,7 @@ class NLPBase(object):
 
         group3.add_argument("--grad_clipping", default = 10, type = int, help = "the threshold value of gradient clip")
 
-        group3.add_argument("--lr", default = 8e-4, type = float, help = "learning rate")
+        group3.add_argument("--lr", default = 1e-4, type = float, help = "learning rate")
 
         group3.add_argument("--keep_prob", default = 0.5, type = float, help = "dropout,percentage to keep during training")
 
@@ -179,7 +179,7 @@ class NLPBase(object):
         # -----------------------------------------------------------------------------------------------------------
         group4 = parser.add_argument_group("4.model [{}] specific parameters".format(self.model_name))
 
-        group4.add_argument("--activation", default = 'sin', type = str, help = "activation for rnn")
+        group4.add_argument("--activation", default = 'relu', type = str, help = "activation for rnn")
         self.add_args(group4)
 
         args = parser.parse_args()

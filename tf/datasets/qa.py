@@ -8,22 +8,34 @@ import os
 import re
 import json
 import jieba
+import codecs
 import logging
 import numpy as np
 from utils.util import logger
 from collections import Counter
+from tensorflow.python.platform import gfile
 from tf.datasets.classify_eval import ClassifierEval
 from tensorflow.contrib.keras.api.keras.preprocessing import sequence
 from utils.util import logger, prepare_split, write_file
 
+jieba.add_word('不可以')
+jieba.add_word('无法确定')
+jieba.add_word('不需要')
+jieba.add_word('不需要')
+jieba.add_word('不一样')
+jieba.add_word('靠谱')
+jieba.add_word('不一定')
+jieba.add_word('不靠谱')
+jieba.add_word('不严重')
+
 
 def default_tokenizer(sentence):
-    # _DIGIT_RE = re.compile(r"\d+")
-    # sentence = _DIGIT_RE.sub("0", sentence)  # digital replace. because the answer contain the number
-    # _CHAR_RE = re.compile(r"[A-Za-z]+$")
-    # sentence = _CHAR_RE.sub("a", sentence)  # No char replace. because the answer donnot contain the char
+    _DIGIT_RE = re.compile(r"\d+")
+    sentence = _DIGIT_RE.sub("0", sentence)  # digital replace. because the answer contain the number
+    _CHAR_RE = re.compile(r"[A-Za-z]+$")
+    sentence = _CHAR_RE.sub("a", sentence)  # No char replace. because the answer donnot contain the char
     _NOCHINESE_RE = re.compile(r"[^\w\u4e00-\u9fff]+")
-    sentence = _NOCHINESE_RE.sub(" E", sentence)
+    sentence = _NOCHINESE_RE.sub("", sentence)
     # sentence = " ".join(sentence.split("|"))
     return list(jieba.cut(sentence))
 
@@ -258,6 +270,50 @@ class QADataSetBase():
                                                     dict_path = os.path.join(file_name, self.args.char_file),
                                                     exclude_n = exclude_n, max_size = max_size)
         return word2id, char2id
+
+    def get_embedding_matrix(self, is_char_embedding = False):
+        """
+        :param is_char_embedding: is the function called for generate char embedding
+        :param vocab_file: file containing saved vocabulary.
+        :return: a dict with each key as a word, each value as its corresponding embedding vector.
+        """
+        word_dict = self.word2id
+        embedding_file = None if is_char_embedding else self.args.embedding_file
+        embedding_dim = self.args.char_embedding_dim if is_char_embedding else self.args.embedding_dim
+        embedding_matrix = self.gen_embeddings(word_dict,
+                                               embedding_dim,
+                                               embedding_file,
+                                               init = np.random.uniform)
+        return embedding_matrix
+
+    @staticmethod
+    def gen_embeddings(word_dict, embed_dim, in_file = None, init = np.zeros):
+        """
+        Init embedding matrix with (or without) pre-trained word embeddings.
+        """
+        num_words = max(word_dict.values()) + 1
+        embedding_matrix = init(-0.05, 0.05, (num_words, embed_dim))
+        logger('Embeddings: %d x %d' % (num_words, embed_dim))
+
+        if not in_file:
+            return embedding_matrix
+
+        def get_dim(file):
+            first = gfile.FastGFile(file, mode = 'r').readline()
+            if len(first.split()) == 2:
+                return int(first.split(' ')[-1])
+            return len(first.split()) - 1
+
+        assert get_dim(in_file) == embed_dim
+        logger('Loading embedding file: %s' % in_file)
+        pre_trained = 0
+        for line in codecs.open(in_file, encoding = "utf-8"):
+            sp = line.split()
+            if sp[0] in word_dict:
+                pre_trained += 1
+                embedding_matrix[word_dict[sp[0]]] = np.asarray([float(x) for x in sp[1:]], dtype = np.float32)
+        logger("Pre-trained: {}, {:.3f}%".format(pre_trained, pre_trained * 100.0 / num_words))
+        return embedding_matrix
 
     @staticmethod
     def gen_dictionary(data, dict_path, exclude_n = 10, max_size = 10000, word2id = None):
