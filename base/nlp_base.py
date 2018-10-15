@@ -98,24 +98,25 @@ class NLPBase(object):
 
         group1.add_argument("--save_val", default = False, type = bool, help = "whether save the validation prediction result.")
 
+        group1.add_argument("--tensorboard", default = True, type = bool, help = "whether save tensorboard result.")
+
         # data specific argument
         group2 = parser.add_argument_group("2.Data specific options")
         # noinspection PyUnresolvedReferences
         import tf.datasets
-        group2.add_argument("--dataset", default = "AIC", choices = sys.modules['tf.datasets'].__all__, type = str,
-                            help = 'type of the dataset to load')
+        group2.add_argument("--dataset", default = "AIC", choices = sys.modules['tf.datasets'].__all__, type = str, help = 'type of the dataset to load')
 
-        group2.add_argument("--embedding_file", default = "../data/processed/AIC/word2vec.300d.txt",
-                            type = str_or_none, help = "pre-trained embedding file")
+        group2.add_argument("--embedding_file", default = "../data/processed/AIC/word2vec.300d.txt", type = str_or_none, help = "pre-trained embedding file")
 
         group2.add_argument("--num_words", default = 35000, type = int, help = "the max number of words in vocabulary")
 
         group2.add_argument("--skip_top", default = 0, type = int, help = "the max number of words in vocabulary")
 
+        group2.add_argument("--visualize_embedding", default = False, type = bool, help = "visualize word embedding")
+
         subgroup = group2.add_argument_group("Some default options related to dataset, don't change if it works")
 
-        subgroup.add_argument("--data_root", default = "../data",
-                              help = "root path of the dataset")
+        subgroup.add_argument("--data_root", default = "../data", help = "root path of the dataset")
 
         subgroup.add_argument("--tmp_dir", default = "../data/processed", help = "dataset specific tmp folder")
 
@@ -125,20 +126,16 @@ class NLPBase(object):
 
         subgroup.add_argument("--test_file", default = "test_sub.txt", help = "test file, if use SQuAD, this arg will be ignore")
 
-        subgroup.add_argument("--max_count", default = None, type = int_or_none,
-                              help = "read n lines of data file, if Nonqe, read all data")
+        subgroup.add_argument("--max_count", default = None, type = int_or_none, help = "read n lines of data file, if Nonqe, read all data")
 
-        subgroup.add_argument("--word_file", default = 'word2id.txt', type = str_or_none,
-                              help = "args.word_file")
+        subgroup.add_argument("--word_file", default = 'word2id.txt', type = str_or_none, help = "args.word_file")
 
-        subgroup.add_argument("--char_file", default = 'char2id.txt', type = str_or_none,
-                              help = "args.char_file")
+        subgroup.add_argument("--char_file", default = 'char2id.txt', type = str_or_none, help = "args.char_file")
 
         # hyper-parameters
         group3 = parser.add_argument_group("3.Hyper parameters shared by all models")
 
-        group3.add_argument("--use_char_embedding", default = False, type = str2bool,
-                            help = "use character embedding or not")
+        group3.add_argument("--use_char_embedding", default = False, type = str2bool, help = "use character embedding or not")
 
         group3.add_argument("--char_embedding_dim", default = 20, type = int, help = "dimension of char embeddings")
 
@@ -148,13 +145,13 @@ class NLPBase(object):
 
         group3.add_argument("--embedding_dim", default = 300, type = int, help = "dimension of word embeddings")
 
-        group3.add_argument("--hidden_size", default = 128, type = int, help = "RNN hidden size")
+        group3.add_argument("--hidden_size", default = 256, type = int, help = "RNN hidden size")
 
         group3.add_argument("--grad_clipping", default = 10, type = int, help = "the threshold value of gradient clip")
 
-        group3.add_argument("--lr", default = 1e-4, type = float, help = "learning rate")
+        group3.add_argument("--lr", default = 5e-4, type = float, help = "learning rate")
 
-        group3.add_argument("--keep_prob", default = 0.5, type = float, help = "dropout,percentage to keep during training")
+        group3.add_argument("--keep_prob", default = 0.8, type = float, help = "dropout,percentage to keep during training")
 
         group3.add_argument("--l2", default = 0.005, type = float, help = "l2 regularization weight")
 

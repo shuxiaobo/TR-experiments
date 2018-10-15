@@ -30,5 +30,5 @@ def get_model_class(model_name):
 
 if __name__ == '__main__':
 
-    model = get_model_class('QA2')
+    model = get_model_class('QA3')
     model.execute()

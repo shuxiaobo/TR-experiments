@@ -118,23 +118,6 @@ class TREC(BinaryClassifierEval):
         logging.info('***** Transfer task : TREC *****\n\n')
         self.seed = seed
         super(TREC, self).__init__(args = args, is_train = is_train, num_class = 6)
-    #     self.train = self.loadFile(os.path.join(args.tmp_dir, self.__class__.__name__, 'train_5500.label'))
-    #     self.test = self.loadFile(os.path.join(args.tmp_dir, self.__class__.__name__, 'TREC_10.label'))
-    #     write_file(data = self.train, path = os.path.join(args.tmp_dir, self.__class__.__name__, args.train_file))
-    #     write_file(data = self.test, path = os.path.join(args.tmp_dir, self.__class__.__name__, args.test_file))
-    #
-    # def loadFile(self, fpath):
-    #     trec_data = []
-    #     tgt2idx = {'ABBR': 0, 'DESC': 1, 'ENTY': 2,
-    #                'HUM': 3, 'LOC': 4, 'NUM': 5}
-    #     with io.open(fpath, 'r', encoding = 'latin-1') as f:
-    #         for line in f:
-    #             target, sample = line.strip().split(':', 1)
-    #             sample = sample.split(' ', 1)[1].split()
-    #             assert target in tgt2idx, target
-    #             trec_data.append(sample + [str(tgt2idx[target])])
-    #     return trec_data
-    # #
 
 
 class SST(BinaryClassifierEval):
@@ -149,23 +132,3 @@ class SST(BinaryClassifierEval):
 
         tmp = 'binary/' if nclasses == 2 else 'fine/'
         super(SST, self).__init__(args, is_train, num_class = nclasses, file_name = tmp)
-    #     self.train = self.loadFile(os.path.join(args.tmp_dir, self.__class__.__name__, tmp, 'sentiment-train'))
-    #     self.dev = self.loadFile(os.path.join(args.tmp_dir, self.__class__.__name__, tmp, 'sentiment-dev'))
-    #     self.test = self.loadFile(os.path.join(args.tmp_dir, self.__class__.__name__, tmp, 'sentiment-test'))
-    #     self.sst_data = {'train': self.train, 'dev': self.dev, 'test': self.test}
-    #
-    #     write_file(data = self.train, path = os.path.join(args.tmp_dir, self.__class__.__name__, tmp, args.train_file))
-    #     write_file(data = self.test, path = os.path.join(args.tmp_dir, self.__class__.__name__, tmp, args.test_file))
-    #     write_file(data = self.dev, path = os.path.join(args.tmp_dir, self.__class__.__name__, tmp, args.valid_file))
-    #
-    # def loadFile(self, fpath):
-    #     sst_data = []
-    #     with io.open(fpath, 'r', encoding = 'utf-8') as f:
-    #         for line in f:
-    #             if self.nclasses == 2:
-    #                 sample = line.strip().split('\t')
-    #                 sst_data.append(sample[0].split() + [sample[1]])
-    #             elif self.nclasses == 5:
-    #                 sample = line.strip().split(' ', 1)
-    #                 sst_data.append(sample[1].split() + [sample[0]])
-    #     return sst_data

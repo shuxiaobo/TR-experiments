@@ -6,6 +6,7 @@ from tf.model.qa import QA
 from tf.model.qa2 import QA2
 from tf.model.qa3 import QA3
 from tf.model.funsion import Fusion
+from tf.model.bilstm_crf import LSTMSRLer
 
 
-__all__ = ["ModifiedRNN", "QA", "QA2", "Fusion", "QA3"]
+__all__ = ["ModifiedRNN", "QA", "QA2", "Fusion", "QA3", "LSTMSRLer"]

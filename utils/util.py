@@ -5,13 +5,15 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import logging
-from tensorflow.python.platform import gfile
-import codecs
-import numpy as np
-import torch
 import os
+import torch
+import codecs
+import logging
+import numpy as np
+import tensorflow as tf
 from collections import Counter
+from tensorflow.python.platform import gfile
+from tensorflow.contrib.tensorboard.plugins import projector
 
 logging.basicConfig(level = logging.DEBUG, format = '%(asctime)s %(filename)s[line:%(lineno)d]： %(message)s', datefmt = '%Y-%m-%d %I:%M:%S')
 logger = logging.info
@@ -97,3 +99,42 @@ def write_file(path, data):
     with open(path, mode = 'w+', encoding = 'utf-8') as f:
         for d in data:
             f.write(' '.join(d) + '\n')
+
+
+def visualize_embedding(embedding_matrix_name, word2id, output_path = None, writer = None):
+    """
+    visualize the word embedding.
+    :param embedding_matrix_name: numpy word embedding name
+    :param word2id: word2id dict
+    :param output_path: path to save the tensorboard file
+    :param writer: tf.writer
+    :return:
+    """
+    assert output_path or writer, "writer or output path could not be none in the same time"
+    output_path = output_path if not writer else writer.get_logdir()
+    meta_file = "embedding_matrix.tsv"
+    with open(os.path.join(output_path, meta_file), 'wb') as file_metadata:
+        for word, i in word2id.items():
+            if word == '':
+                print("Emply Line, should replecaed by any thing else, or will cause a bug of tensorboard")
+                file_metadata.write("{0}".format('<Empty Line>').encode('utf-8') + b'\n')
+            else:
+                file_metadata.write("{0}".format(word).encode('utf-8') + b'\n')
+
+    # define the model without training
+    sess = tf.InteractiveSession()
+
+    writer = tf.summary.FileWriter(output_path, sess.graph) if not writer else writer
+
+    # adding into projector
+    config = projector.ProjectorConfig()
+    embed = config.embeddings.add()
+    embed.tensor_name = embedding_matrix_name
+    embed.metadata_path = meta_file
+
+    # Specify the width and height of a single thumbnail.
+    projector.visualize_embeddings(writer, config)
+    if not writer:
+        saver = tf.train.Saver()
+        saver.save(sess, os.path.join(output_path, 'w2x_metadata.ckpt'))
+    print('Run `tensorboard --logdir={0}` to run visualize result on tensorboard'.format(output_path))

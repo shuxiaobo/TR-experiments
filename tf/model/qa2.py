@@ -36,7 +36,7 @@ class QA2(ModelBase):
 
         alt_mask = tf.sequence_mask(alt_length, maxlen = self.dataset.alt_max_len, dtype = tf.float32)
         init_embedding = tf.constant(self.embedding_matrix, dtype = tf.float32, name = "embedding_init")
-        embedding_matrix = tf.get_variable("embedding_matrix", initializer = init_embedding, dtype = tf.float32, trainable = True)
+        embedding_matrix = tf.get_variable("embedding_matrix", initializer = init_embedding, dtype = tf.float32, trainable = False)
         # embedding_matrix = tf.get_variable("embedding_matrix", shape = [self.dataset.word2id_size, self.args.embedding_dim], dtype = tf.float32)
 
         if self.args.rnn_type.lower() == 'modified':
@@ -292,6 +292,8 @@ class QA2(ModelBase):
         self.accuracy = self.correct_prediction / tf.shape(document)[0]
 
         self.prediction = tf.argmax(result, -1)
+
+        self.merged_summary = tf.summary.merge_all()
 
     def test_save(self, pred):
         ids = list()

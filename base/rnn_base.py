@@ -6,10 +6,11 @@ import os
 import sys
 
 import tensorflow as tf
-
+from tensorflow.contrib.tensorboard.plugins import projector
 # noinspection PyUnresolvedReferences
 from .nlp_base import NLPBase
 from utils.log import logger, save_obj_to_json, err
+from utils.util import visualize_embedding
 import datetime
 
 
@@ -45,6 +46,23 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
     @accuracy.setter
     def accuracy(self, value):
         self._accuracy = value
+
+    def metric(self, preds, label):
+        """
+        Implement the method to set your own metric, while use them in evaluation
+        :param preds: list
+        :param label: list
+        :return:
+        """
+        pass
+
+    def test_save(self, pred):
+        """
+        save the test result
+        if you wanna to save the result, please override the method
+        :return:
+        """
+        return
 
     def get_train_op(self):
         """
@@ -104,7 +122,8 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
         self.saver = tf.train.Saver(max_to_keep = 20)
 
         if self.args.train:
-            self.draw_graph()
+            if self.args.tensorboard:
+                self.draw_graph()
             self.train()
         if self.args.test:
             self.test()
@@ -118,6 +137,14 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
         self.writer.add_graph(self.sess.graph)
         tf.summary.scalar('loss', self.loss)
         tf.summary.scalar('accuracy', self.accuracy)
+
+        config = projector.ProjectorConfig()
+        embedding_conf = config.embeddings.add()
+        embedding_conf.tensor_name = 'embedding_matrix'
+        # embedding_conf.metadata_path = os.path.join(log_file, 'metadata.tsv')
+        projector.visualize_embeddings(self.writer, config)
+
+        self.merged_summary = tf.summary.merge_all()
         logger('Save log to %s' % log_file)
 
     def get_batch_data(self, mode, idx):
@@ -152,7 +179,6 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
             step = self.sess.run(self.step)
             # on Epoch start
             data, samples = self.get_batch_data("train", step % batch_num)
-
             # TODO : here can be remove if the test being desperated
             data = dict(data, **{'keep_prob:0': self.args.keep_prob})
 
@@ -169,11 +195,10 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
                     step % batch_num, batch_num,
                     loss_in_epoch / samples_in_epoch,
                     corrects_in_epoch / samples_in_epoch))
-
-                merged_summary = tf.summary.merge_all()
-                s = self.sess.run(merged_summary, feed_dict = data)
-                self.writer.add_summary(s, step)
-                self.writer.flush()
+                if self.args.tensorboard:
+                    s = self.sess.run(self.merged_summary, feed_dict = data)
+                    self.writer.add_summary(s, step)
+                    self.writer.flush()
 
             if step % batch_num == 0:
                 corrects_in_epoch, samples_in_epoch, loss_in_epoch = 0, 0, 0
@@ -185,6 +210,7 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
                 val_acc, val_loss = self.validate()
                 self.early_stopping(val_acc, val_loss, step)
                 self.best_val_acc = max(self.best_val_acc, val_acc)
+            self.sess.graph.finalize()
 
     def validate(self):
         batch_size = self.args.batch_size
@@ -194,6 +220,8 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
         # logger("Validate on {} batches, {} samples per batch, {} total."
         #        .format(v_batch_num, batch_size, self.valid_nums))
         val_num, val_corrects, v_loss = 0, 0, 0
+
+        preds = list()
         for i in range(v_batch_num):
             data, samples = self.get_batch_data("valid", i)
 
@@ -201,10 +229,15 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
             data = dict(data, **{'keep_prob:0': 1.})
 
             if samples != 0:
-                loss, v_correct = self.sess.run([self.loss, self.correct_prediction], feed_dict = data)
+                loss, v_correct, prediction = self.sess.run([self.loss, self.correct_prediction, self.prediction], feed_dict = data)
                 val_num += samples
                 val_corrects += v_correct
                 v_loss += loss * samples
+                preds.extend(prediction.tolist())
+
+        # call the custom metric
+        # self.metric(preds = preds, label = self.dataset.valid_y.tolist())
+
         assert (val_num == self.valid_nums)
         val_acc = val_corrects / val_num
         val_loss = v_loss / val_num
@@ -230,9 +263,10 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
 
     def save_weight(self, val_acc, step):
         path = self.saver.save(self.sess,
-                               os.path.join(self.args.weight_path,
+                               os.path.join(self.writer.get_logdir(),
                                             "{}-val_acc-{:.4f}.models-{}".format(self.model_name, val_acc, datetime.datetime.now())),
                                global_step = step)
+        visualize_embedding(word2id = self.dataset.word2id, embedding_matrix_name = self.embedding.name, writer = self.writer)
         logger("Save models to {}.".format(path))
 
     def load_weight(self):
@@ -254,7 +288,6 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
         result = list()
         for i in range(batch_num):
             data, samples = self.get_batch_data("test", i)
-
             # TODO : here can be remove if the test being desperated
             data = dict(data, **{'keep_prob:0': 1.})
 
@@ -272,14 +305,6 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
         }
         self.test_save(pred = result)
         save_obj_to_json(self.args.weight_path, res, "result.json")
-
-    def test_save(self, pred):
-        """
-        save the test result
-        if you wanna to save the result, please override the method
-        :return:
-        """
-        return
 
     def confirm_model_dataset_fitness(self):
         # make sure the models_in_datasets var is correct
@@ -304,6 +329,9 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
         try:
             _ = self.loss
             _ = self.correct_prediction
+            _ = self.prediction
+            if self.args.visualize_embedding:
+                _ = self.embedding
         except AttributeError as e:
             err("Your model {} doesn't have enough attributes.\nError Message:\n\t{}".format(self.model_name, e))
             self.sess.close()

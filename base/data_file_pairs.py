@@ -61,5 +61,10 @@ dataset_files_pairs = {
         "../data/AIC",
         "train.json",
         "test.json",
-        "test_sub.json"]
+        "test_sub.json"],
+    "SRL": [
+        "../data/SRL",
+        "trainIn.txt",
+        "devIn.txt",
+        "testIn.txt"]
 }
