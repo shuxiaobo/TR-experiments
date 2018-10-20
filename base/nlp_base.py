@@ -135,7 +135,7 @@ class NLPBase(object):
         # hyper-parameters
         group3 = parser.add_argument_group("3.Hyper parameters shared by all models")
 
-        group3.add_argument("--use_char_embedding", default = False, type = str2bool, help = "use character embedding or not")
+        group3.add_argument("--use_char_embedding", default = True, type = str2bool, help = "use character embedding or not")
 
         group3.add_argument("--char_embedding_dim", default = 20, type = int, help = "dimension of char embeddings")
 

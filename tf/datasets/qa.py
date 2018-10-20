@@ -215,7 +215,7 @@ class QADataSetBase():
                     logging.error("Deal the input line error" + '：' + line)
                     continue
                 passage = list(line["passage"].split(' '))
-                passage = passage[:100]
+                passage = passage[:200]
                 alt = []
                 alt_tmp = line["alternatives"].split('|')
                 if len(alt_tmp) != 3:

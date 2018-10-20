@@ -13,6 +13,7 @@ from utils.util import accuracy
 from model.model1 import NGramRNN
 from model.model2 import NGramRNN2
 from model.model3 import NGramRNN3
+from model.model4 import NGramConcatRNN
 from datasets.imdb import IMDB
 from model.baseline import BaseLineRNN
 from tensorboardX import SummaryWriter
@@ -200,7 +201,7 @@ def init_from_scrach(args):
     # model = FusionModel(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
     #                     num_layers = args.num_layers,
     #                     bidirection = args.bidirectional, num_class = train_dataset.num_class)
-    model = FusionNGramRNN(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
+    model = NGramConcatRNN(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
                         rnn_layers = args.num_layers,
                         bidirection = args.bidirectional, kernel_size = args.kernel_size, stride = args.stride, num_class = train_dataset.num_class)
     model.cuda()

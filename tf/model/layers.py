@@ -6,6 +6,7 @@ import tensorflow as tf
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import init_ops
+from tensorflow.python.ops import special_math_ops
 from tensorflow.python.ops import nn_ops
 from tensorflow.python.ops import clip_ops
 from tensorflow.python.layers import base as base_layer
@@ -135,7 +136,7 @@ class ModifiedRNNCell(LayerRNNCell):
         gate_inputs = math_ops.add(gate_inputs, recurrent_update)
         if self.bias:
             gate_inputs = nn_ops.bias_add(gate_inputs, self._bias)
-        output =  gate_inputs
+        output = gate_inputs
         return output, output
 
 
@@ -193,3 +194,39 @@ class ClassifiedNet():
             cls_result = tf.nn.xw_plus_b(x = feature, weights = w, biases = bias)
             # cls_result = tf.einsum('bij,jk->bik', feature, w)
         return cls_result
+
+
+class ContextEmbedding:
+    def __init__(self, context_size = 3, method = 'concat'):
+        """
+        use the word context embedding
+        :param context_size:
+        :param method: 'concat' , 'dot', 'matmul'
+        """
+        self.context_size = context_size
+        self.method = method
+
+    def __call__(self, x, embedding_matrix):
+        """
+        concat or dot or matmul the context words embedding.
+        :param x:
+        :param embedding_matrix:
+        :return:
+        """
+        with tf.variable_scope('context_embedding', reuse = False) as scp:
+            embed = tf.nn.embedding_lookup(embedding_matrix, x, max_norm = 1.)
+            embed2 = tf.nn.embedding_lookup(embedding_matrix,
+                                            tf.concat([tf.zeros(shape = [tf.shape(embed)[0], 1], dtype = tf.int64), x[:, 1:]], -1))
+            embed3 = tf.nn.embedding_lookup(embedding_matrix,
+                                            tf.concat([x[:, :-1], tf.zeros(shape = [tf.shape(embed)[0], 1], dtype = tf.int64)], -1))
+            if self.method == 'concat':
+                embed = tf.concat([embed2, embed, embed3], -1)
+            elif self.method == 'dot':
+                embed = embed * embed2 * embed3
+            elif self.method == 'matmul':
+                w = tf.get_variable('w', shape = [embed.get_shape()[-1], embed.get_shape()[-1]], initializer = init_ops.identity_initializer)
+                embed = math_ops.tensordot(tf.stack([embed2, embed, embed3], axis = -2), w, axes = [[3], [0]]) / math_ops.sqrt(tf.cast(embed.get_shape()[-1], tf.float32))
+                embed = tf.reshape(embed, shape = [-1, embed.get_shape()[1], embed.get_shape()[-1] * 3])
+            else:
+                raise NotImplementedError('No such method named {}'.format(self.method))
+        return embed

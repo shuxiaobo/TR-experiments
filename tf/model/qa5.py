@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Created by ShaneSue on 2018/9/8
+# Created by ShaneSue on 2018/10/18
 import os
+import math
+import numpy as np
 import tensorflow as tf
 from base.rnn_base import ModelBase
+from tf.model.layers import ContextEmbedding
 from tf.model.layers import IndRNNCell
 from tensorflow.python.ops import nn_ops
 from tensorflow.python.ops import math_ops
@@ -16,7 +19,7 @@ from tensorflow.contrib.rnn import MultiRNNCell, LSTMCell, GRUCell, DropoutWrapp
 
 # TODO: 对于一个歧义词，应该利用上下文的几个单词来区分
 
-class QA3(ModelBase):
+class QA5(ModelBase):
 
     def create_model(self):
         keep_prob = tf.placeholder(name = 'keep_prob', dtype = tf.float32)
@@ -36,7 +39,14 @@ class QA3(ModelBase):
         query_length = tf.reduce_sum(tf.sign(tf.abs(query)), axis = -1)
         alt_length = tf.reduce_sum(tf.sign(tf.abs(alterative)), axis = -1)
 
+        doc_mask = tf.sequence_mask(doc_length, maxlen = self.dataset.doc_max_len, dtype = tf.float32)
+        doc_mask = tf.expand_dims(doc_mask, -1)
+
+        query_mask = tf.sequence_mask(query_length, maxlen = self.dataset.query_max_len, dtype = tf.float32)
+        query_mask = tf.expand_dims(query_mask, -1)
+
         alt_mask = tf.sequence_mask(alt_length, maxlen = self.dataset.alt_max_len, dtype = tf.float32)
+        alt_mask = tf.expand_dims(alt_mask, -1)
 
         init_embedding = tf.constant(self.embedding_matrix, dtype = tf.float32, name = "embedding_init")
         embedding_matrix = tf.get_variable("embedding_matrix", initializer = init_embedding, dtype = tf.float32, trainable = False)
@@ -104,7 +114,7 @@ class QA3(ModelBase):
             # q_char_out = tf.reduce_max(q_char_embed * tf.expand_dims(query_char_mask, -1), -1)
 
         with tf.variable_scope("query_encoder") as scp:
-            query_embed = tf.nn.embedding_lookup(embedding_matrix, query, max_norm = 1.)
+            query_embed = ContextEmbedding(method = 'matmul')(x = query, embedding_matrix = embedding_matrix)
             if self.args.use_char_embedding:
                 query_embed = tf.concat([query_embed, q_char_out], -1)
 
@@ -122,9 +132,10 @@ class QA3(ModelBase):
                                                                                    dtype = tf.float32, parallel_iterations = None,
                                                                                    swap_memory = True, time_major = False, scope = None)
                 query_output_con = tf.concat(query_outputs, -1)
-                # self_att_w = tf.get_variable('self_att_w_%d' % i, shape = [query_output_con.get_shape()[-1], 1])
-                # att = nn_ops.softmax(tf.squeeze(special_math_ops.einsum('bij,jk->bik', query_output_con, self_att_w), -1), -1)
-                # query_output_con = query_output_con * tf.expand_dims(att, -1)
+                # self_att_w = tf.get_variable('self_att_w_%d' % i, shape = [query_output_con.get_shape()[-1], query_output_con.get_shape()[-1]])
+                # att = nn_ops.softmax( special_math_ops.einsum('bij,jk->bik', query_output_con, self_att_w) / math_ops.sqrt(tf.cast(query_output_con.get_shape()[-1],
+                #                                                                                                          dtype = tf.float32)), -1)
+                # query_output_con = query_output_con * att
 
                 query_last_states_concat.extend(query_last_states)
                 query_outputs_concat.extend(query_outputs)
@@ -141,7 +152,8 @@ class QA3(ModelBase):
             query_encoded = tf.nn.dropout(query_encoded, keep_prob = keep_prob)
 
         with tf.variable_scope('doc_encoder', reuse = tf.AUTO_REUSE) as scp:
-            doc_embed = tf.nn.embedding_lookup(embedding_matrix, document, max_norm = 1.)
+            doc_embed = ContextEmbedding(method = 'matmul')(x = document, embedding_matrix = embedding_matrix)
+
             if self.args.use_char_embedding:
                 doc_embed = tf.concat([doc_embed, d_char_out], -1)
             qry_encoded_dupli = tf.tile(tf.expand_dims(query_encoded, 1), multiples = [1, self.dataset.doc_max_len, 1])
@@ -167,31 +179,30 @@ class QA3(ModelBase):
                 # doc_output_con = tf.concat(doc_outputs, -1) * tf.expand_dims(att, -1)
 
                 # AOA atted
-                att = tf.squeeze(special_math_ops.einsum('bij,bjk->bik', tf.concat(doc_outputs, -1), tf.expand_dims(
-                    tf.concat([query_last_states_concat[2 * i][0], query_last_states_concat[2 * i + 1][0]], -1), -1)), -1)
+                doc_outputs_tmp = tf.concat(doc_outputs, -1)
+                att = tf.squeeze(special_math_ops.einsum('bij,bjk->bik', doc_outputs_tmp, tf.expand_dims(
+                    tf.concat([query_last_states_concat[2 * i][0], query_last_states_concat[2 * i + 1][0]], -1), -1)), -1) / math_ops.sqrt(
+                    tf.cast(tf.shape(doc_outputs_tmp)[-1], dtype = tf.float32))
                 doc_enc_qry_enc_w = tf.get_variable('doc_enc_qry_enc',
-                                                    shape = [tf.concat(doc_outputs, -1).get_shape()[-1], query_outputs.get_shape()[-1]])
+                                                    shape = [doc_outputs_tmp.get_shape()[-1], query_outputs.get_shape()[-1]])
                 att += tf.reduce_sum(
-                    tf.matmul(tf.einsum('bij,jk->bik', tf.concat(doc_outputs, -1), doc_enc_qry_enc_w), tf.transpose(query_outputs, perm = [0, 2, 1])), -1)
-                doc_enc_qry_emb_w = tf.get_variable('doc_enc_qry_emb', shape = [tf.concat(doc_outputs, -1).get_shape()[-1], query_embed.get_shape()[-1]])
+                    tf.matmul(tf.einsum('bij,jk->bik', doc_outputs_tmp, doc_enc_qry_enc_w), tf.transpose(query_outputs * query_mask, perm = [0, 2, 1])),
+                    -1) / math_ops.sqrt(
+                    tf.cast(tf.shape(doc_outputs_tmp)[-1], dtype = tf.float32))
+                doc_enc_qry_emb_w = tf.get_variable('doc_enc_qry_emb', shape = [doc_outputs_tmp.get_shape()[-1], query_embed.get_shape()[-1]])
                 att += tf.reduce_sum(
-                    tf.matmul(tf.einsum('bij,jk->bik', tf.concat(doc_outputs, -1), doc_enc_qry_emb_w), tf.transpose(query_embed, perm = [0, 2, 1])), -1)
+                    tf.matmul(tf.einsum('bij,jk->bik', doc_outputs_tmp, doc_enc_qry_emb_w), tf.transpose(query_embed, perm = [0, 2, 1])), -1) / math_ops.sqrt(
+                    tf.cast(tf.shape(doc_outputs_tmp)[-1], dtype = tf.float32))
                 qry_enc_doc_emb = tf.get_variable('qry_enc_doc_emb', shape = [doc_embed.get_shape()[-1], query_outputs.get_shape()[-1]])
-                att += tf.reduce_sum(tf.matmul(tf.einsum('bij,jk->bik', doc_embed, qry_enc_doc_emb), tf.transpose(query_outputs, perm = [0, 2, 1])), -1)
+                att += tf.reduce_sum(tf.matmul(tf.einsum('bij,jk->bik', doc_embed, qry_enc_doc_emb), tf.transpose(query_outputs, perm = [0, 2, 1])),
+                                     -1) / math_ops.sqrt(tf.cast(tf.shape(doc_outputs_tmp)[-1], dtype = tf.float32))
 
                 att = nn_ops.softmax(att, -1)
-                doc_output_con = tf.concat(doc_outputs, -1) * tf.expand_dims(att, -1)
+                doc_output_con = doc_outputs_tmp * tf.expand_dims(att, -1)
 
                 doc_outputs_concat.extend(doc_outputs)
                 doc_last_states_concat.extend(doc_last_states)
                 doc_inputs = tf.concat([doc_embed, doc_output_con], -1)
-
-            # ELMo s^{task}_j
-            # doc_outputs_concat = [tf.expand_dims(dd, 1) for dd in doc_outputs_concat]
-            # layer_norm_w = tf.get_variable(name = "layer_norm_w", shape = [self.args.num_layers * 2, 1, 1])
-            # layer_norm_w = tf.nn.softmax(layer_norm_w)
-            # doc_outputs = tf.concat(doc_outputs_concat, axis = 1) * layer_norm_w
-            # doc_outputs = tf.reshape(doc_outputs, shape = [-1, doc_outputs.get_shape()[2], doc_outputs.get_shape()[1] * doc_outputs.get_shape()[-1]])
 
             doc_outputs = tf.concat(doc_outputs_concat, axis = -1)
             doc_last_states = tf.concat(doc_last_states_concat, axis = -1)
@@ -220,17 +231,8 @@ class QA3(ModelBase):
 
             doc_atted_max = tf.nn.dropout(doc_atted_max, keep_prob = self.args.keep_prob)
 
-        with tf.variable_scope("query_encoder", reuse = tf.AUTO_REUSE) as scp:
+        with tf.variable_scope("alt_encoder", reuse = tf.AUTO_REUSE) as scp:
             alter_embed = embedding_ops.embedding_lookup(embedding_matrix, alterative, max_norm = 1.)
-            # alter_embed_sumed = tf.reduce_max(alter_embed * tf.expand_dims(alt_mask, -1), axis = -2)
-            # alter_w = tf.get_variable('alter_w', shape = [self.args.embedding_dim, doc_atted.get_shape()[-1]])
-            # alter_b = tf.get_variable('alter_b', shape = [doc_atted.get_shape()[-1]])
-            # alter_embed_wxb = special_math_ops.einsum('bij,jk->bik', alter_embed_sumed, alter_w) + alter_b
-            # # alter_embed_wxb = alter_embed_wxb * tf.expand_dims(alt_mask, -1)
-            # # B * 3 * 2H
-            # alter_encoded = alter_embed_wxb
-            # alter_encoded = tf.transpose(alter_encoded, perm = [0, 2, 1])
-            #
             num_layers = self.args.num_layers
             alt_last_states_concat = list()
             alt_outputs_concat = list()
@@ -257,12 +259,12 @@ class QA3(ModelBase):
 
             alter_encoded = tf.nn.dropout(alter_encoded, keep_prob = keep_prob)
 
-        # with tf.variable_scope("max_pooled_classify") as scp:
-        #     # max pooled
-        #     result = tf.squeeze(math_ops.matmul(tf.expand_dims(doc_atted_max, -2), alter_encoded), -2)
-        #     result = result + tf.squeeze(math_ops.matmul(tf.expand_dims(tf.reduce_max(doc_encoded, 1), 1), alter_encoded), 1)
-        #     embed_w = tf.get_variable('embed_w', shape = [doc_embed.get_shape()[-1], alter_encoded.get_shape()[-2]])
-        #     result = result + tf.squeeze(tf.matmul(tf.expand_dims(tf.reduce_max(tf.einsum('bij,jk->bik', doc_embed, embed_w), 1), 1), alter_encoded))
+        with tf.variable_scope("max_pooled_classify") as scp:
+            # max pooled
+            result = tf.squeeze(math_ops.matmul(tf.expand_dims(doc_atted_max, -2), alter_encoded), -2)
+            result = result + tf.squeeze(math_ops.matmul(tf.expand_dims(tf.reduce_max(doc_encoded, 1), 1), alter_encoded), 1)
+            embed_w = tf.get_variable('embed_w', shape = [doc_embed.get_shape()[-1], alter_encoded.get_shape()[-2]])
+            result = result + tf.squeeze(tf.matmul(tf.expand_dims(tf.reduce_max(tf.einsum('bij,jk->bik', doc_embed, embed_w), 1), 1), alter_encoded))
         #
         # with tf.variable_scope('hidden_classify') as scp:
         #     # last hidden state
@@ -278,11 +280,11 @@ class QA3(ModelBase):
         #     embed_w = tf.get_variable('embed_w', shape = [doc_embed.get_shape()[-1], alter_encoded.get_shape()[-2]])
         #     result = result + tf.reduce_sum(tf.matmul(special_math_ops.einsum('bij,jk-bik', doc_embed, embed_w), alter_encoded), 1)
 
-        with tf.variable_scope('infer_classify') as scp:
-            feature = tf.concat(
-                [doc_last_states_dropped, query_outputs_max, doc_last_states_dropped - query_outputs_max, doc_last_states_dropped * query_outputs_max], -1)
-            embed_w = tf.get_variable('embed_w', shape = [feature.get_shape()[-1], alter_encoded.get_shape()[-2]])
-            result = tf.reduce_sum(tf.matmul(tf.expand_dims(math_ops.matmul(feature, embed_w), 1), alter_encoded), 1)
+        # with tf.variable_scope('infer_classify') as scp:
+        #     feature = tf.concat(
+        #         [doc_last_states_dropped, query_outputs_max, doc_last_states_dropped - query_outputs_max, doc_last_states_dropped * query_outputs_max], -1)
+        #     embed_w = tf.get_variable('embed_w', shape = [feature.get_shape()[-1], alter_encoded.get_shape()[-2]])
+        #     result = tf.reduce_sum(tf.matmul(tf.expand_dims(math_ops.matmul(feature, embed_w), 1), alter_encoded), 1)
 
         # result = tf.reduce_sum(special_math_ops.einsum('bij,bjk->bik', doc_atted, alter_encoded), 1)
 

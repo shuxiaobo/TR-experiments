@@ -98,7 +98,7 @@ def main():
 
     group4.add_argument('--task', default = 1, type = int, help = 'task 1 for nli, 0 for classify')
 
-    group4.add_argument('--num_layers', default = 3, type = int, help = 'number of layers')
+    group4.add_argument('--num_layers', default = 1, type = int, help = 'number of layers')
 
     group4.add_argument('--activation', default = 'relu', type = str, help = 'activation function for RNN ')
 

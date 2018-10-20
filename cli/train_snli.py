@@ -10,6 +10,7 @@ import numpy as np
 from model.model1 import NGramRNN
 from model.model2 import NGramRNN2
 from model.model3 import NGramRNN3
+from model.model4 import NGramConcatRNN
 from model.baseline import BaseLineRNN
 from utils.util import accuracy
 from datasets.binary import *
@@ -118,12 +119,12 @@ def init_from_scrach(args):
     # model = FusionModel(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
     #                     num_layers = args.num_layers,
     #                     bidirection = args.bidirectional, num_class = train_dataset.num_class)
-    model = FusionNGramRNN(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
+    model = NGramConcatRNN(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
                            rnn_layers = args.num_layers,
                            bidirection = args.bidirectional, kernel_size = args.kernel_size, stride = args.stride, num_class = train_dataset.num_class)
     model.cuda()
     model.init_optimizer()
-    model2 = ClassifyNet(args = args, input_size = args.hidden_size * 2 * args.num_layers if args.bidirectional else args.hidden_size, num_cls = train_dataset.num_class)
+    model2 = ClassifyNet(args = args, input_size = args.hidden_size * 2 if args.bidirectional else args.hidden_size, num_cls = train_dataset.num_class)
     model2.cuda()
     model2.init_optimizer()
     logging.info('Model {} initiate over...'.format(model.__class__.__name__))
