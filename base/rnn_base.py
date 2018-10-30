@@ -263,7 +263,7 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
 
     def save_weight(self, val_acc, step):
         path = self.saver.save(self.sess,
-                               os.path.join(self.writer.get_logdir(),
+                               os.path.join(self.args.weight_path,
                                             "{}-val_acc-{:.4f}.models-{}".format(self.model_name, val_acc, datetime.datetime.now())),
                                global_step = step)
         visualize_embedding(word2id = self.dataset.word2id, embedding_matrix_name = self.embedding.name, writer = self.writer)

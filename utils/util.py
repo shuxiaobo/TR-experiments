@@ -138,3 +138,16 @@ def visualize_embedding(embedding_matrix_name, word2id, output_path = None, writ
         saver = tf.train.Saver()
         saver.save(sess, os.path.join(output_path, 'w2x_metadata.ckpt'))
     print('Run `tensorboard --logdir={0}` to run visualize result on tensorboard'.format(output_path))
+
+
+def file2dict(file_path):
+    """
+    file to str2id dict
+    :param file_path:
+    :return:
+    """
+    with open(file_path, mode = 'r') as f:
+        result = {}
+        for l in f:
+            result.setdefault(l.strip(), len(result))
+    return result

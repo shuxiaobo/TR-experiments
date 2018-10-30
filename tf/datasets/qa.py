@@ -11,12 +11,13 @@ import jieba
 import codecs
 import logging
 import numpy as np
+import jieba.posseg as pseg
 from utils.util import logger
 from collections import Counter
 from tensorflow.python.platform import gfile
 from tf.datasets.classify_eval import ClassifierEval
 from tensorflow.contrib.keras.api.keras.preprocessing import sequence
-from utils.util import logger, prepare_split, write_file
+from utils.util import logger, prepare_split, write_file, file2dict
 
 jieba.add_word('不可以')
 jieba.add_word('无法确定')
@@ -27,17 +28,6 @@ jieba.add_word('靠谱')
 jieba.add_word('不一定')
 jieba.add_word('不靠谱')
 jieba.add_word('不严重')
-
-
-def default_tokenizer(sentence):
-    _DIGIT_RE = re.compile(r"\d+")
-    sentence = _DIGIT_RE.sub("0", sentence)  # digital replace. because the answer contain the number
-    _CHAR_RE = re.compile(r"[A-Za-z]+$")
-    sentence = _CHAR_RE.sub("a", sentence)  # No char replace. because the answer donnot contain the char
-    _NOCHINESE_RE = re.compile(r"[^\w\u4e00-\u9fff]+")
-    sentence = _NOCHINESE_RE.sub("", sentence)
-    # sentence = " ".join(sentence.split("|"))
-    return list(jieba.cut(sentence))
 
 
 def process_tokens(temp_tokens):
@@ -99,6 +89,10 @@ class QADataSetBase():
         self.word2id_size = len(self.word2id)
         self.char2id_size = len(self.char2id) if self.char2id else 0
         self.train_idx = np.random.permutation(self.train_nums // self.args.batch_size)
+
+        # for tagging
+        if hasattr(self.args, 'tagging') and self.args.tagging:
+            self.tag2id = self.tags_dict(os.path.join(args.tmp_dir, self.__class__.__name__))
 
     def load_data(self, file_name = ''):
         # load the train
@@ -176,6 +170,8 @@ class QADataSetBase():
 
         alt_les = list()
         if not os.path.exists(fpath + '.txt'):
+            if self.args.use_dictionary:
+                jieba.load_userdict(os.path.join(self.args.tmp_dir, self.__class__.__name__, 'dict.txt'))
             logger("Preprocess the json data . cut the chinese...")
             f1 = io.open(fpath + '.txt', mode = 'w+', encoding = 'utf-8')
             with io.open(fpath, 'r', encoding = 'utf-8') as f:
@@ -185,11 +181,11 @@ class QADataSetBase():
                     except Exception as err:
                         logging.error("Deal the input line error" + '：' + line)
                         continue
-                    passage = default_tokenizer(line["passage"])
+                    passage = self.default_tokenizer(line["passage"])
                     line["passage"] = ' '.join(passage)
                     data_doc.append(passage)
 
-                    query = default_tokenizer(line["query"])
+                    query = self.default_tokenizer(line["query"])
                     line["query"] = ' '.join(query)
                     data_query.append(query)
                     data_query_id.append(line["query_id"])
@@ -223,7 +219,7 @@ class QADataSetBase():
                 assert len(alt_tmp) == 3
                 data_alt_not_cut.append(alt_tmp)
                 for l in alt_tmp:
-                    altsss = default_tokenizer(l)
+                    altsss = self.default_tokenizer(l)
                     alt.append(altsss)
                     alt_les.extend([len(s) for s in altsss])
                 query = line["query"].split(' ')
@@ -260,6 +256,14 @@ class QADataSetBase():
         return data_x, data_y
 
     def prepare_dict(self, file_name, exclude_n = 10, max_size = 10000):
+        """
+        we use the data format:[['你好','吗', '?'],['可以']]
+        or if tagging format :[['我', 'r',''爱,'v','北京','ns', '天安门', ''ns]]
+        :param file_name:
+        :param exclude_n:
+        :param max_size:
+        :return:
+        """
         logger("Prepare the dictionary for the {}...".format(self.__class__.__name__))
         data = self.train_x[0] + self.train_x[1] + self.valid_x[0] + self.valid_x[1]  # use passage words and query words
         word2id = {self._PAD: self._PAD_ID, self._UNKOWN: self._UNKOWN_ID}
@@ -270,6 +274,24 @@ class QADataSetBase():
                                                     dict_path = os.path.join(file_name, self.args.char_file),
                                                     exclude_n = exclude_n, max_size = max_size)
         return word2id, char2id
+
+    def tags_dict(self, file_name):
+        assert hasattr(self.args, 'tagging'), "NO parameter supply for tagging."
+        file_exist = os.path.isfile(os.path.join(file_name, self.args.tag_file)) and os.path.getsize(os.path.join(file_name, self.args.tag_file)) > 0
+        if file_exist:
+            return file2dict(os.path.join(file_name, self.args.tag_file))
+        data = self.train_x[0] + self.train_x[1] + self.valid_x[0] + self.valid_x[1]  # use passage words and query words
+        tag_dict = {self._PAD: self._PAD_ID}
+        with open(os.path.join(file_name, self.args.tag_file), mode = 'w+') as f:
+            tmp = []
+            for d in data:
+                for i in range(1, len(d), 2):
+                    tmp.append(d[i])
+            rs = Counter(tmp).most_common()
+            tag_dict = dict(tag_dict, **{k[0]: v for v, k in enumerate(rs)})
+            for d, v in tag_dict.items():
+                f.write(d + '\n')
+        return tag_dict
 
     def get_embedding_matrix(self, is_char_embedding = False):
         """
@@ -355,8 +377,7 @@ class QADataSetBase():
             path = self.args.tmp_dir + self.__class__.__name__
         word2id, char2id = dict(), dict()
         word_file_exit = os.path.isfile(os.path.join(path, self.args.word_file)) and os.path.getsize(os.path.join(path, self.args.word_file)) > 0
-        char_file_exit = os.path.isfile(os.path.join(path, self.args.char_file)) and os.path.getsize(
-            os.path.join(path, self.args.char_file)) > 0
+        char_file_exit = os.path.isfile(os.path.join(path, self.args.char_file)) and os.path.getsize(os.path.join(path, self.args.char_file)) > 0
         if not word_file_exit or not char_file_exit:
             word2id, char2id = self.prepare_dict(path, exclude_n = exclude_n, max_size = max_size)
             logger('Word2id size : %d, Char2id size : %d' % (len(word2id), len(char2id)))
@@ -379,7 +400,14 @@ class QADataSetBase():
         return word2id, char2id, path
 
     def getitem(self, dataset, index):
-        result = [self.word2id[d] if self.word2id.get(d) else self.word2id[self._UNKOWN] for d in dataset[index]]
+        if not hasattr(self.args, 'tagging') or not self.args.tagging:
+            result = [self.word2id[d] if self.word2id.get(d) else self.word2id[self._UNKOWN] for d in dataset[index]]
+        else:
+            result = [self.word2id[dataset[index][i]] if self.word2id.get(dataset[index][i]) else self.word2id[self._UNKOWN] for i in
+                      range(0, len(dataset[index]), 2)]
+            result_tag = [self.tag2id[dataset[index][i]] if self.tag2id.get(dataset[index][i]) else self.tag2id[self._UNKOWN] for i in
+                          range(1, len(dataset[index]), 2)]
+            result = (result, result_tag)
         return result
 
     def __len__(self):
@@ -426,12 +454,23 @@ class QADataSetBase():
             sequence.pad_sequences([[self.word2id[d] if self.word2id.get(d) else self.word2id[self._UNKOWN] for d in dd] for dd in dataset_x[2][i]],
                                    maxlen = self.alt_max_len, padding = "post")
             for i in range(start, stop)]
+        if hasattr(self.args, 'tagging') and self.args.tagging:
+            document_tag = [dt for d, dt in document]
+            document = [d for d, dt in document]
+            query_tag = [dt for d, dt in query]
+            query = [d for d, dt in query]
+
         data = {
             "document:0": sequence.pad_sequences(document, maxlen = self.doc_max_len, padding = "post"),
             "answer:0": dataset_y[start:stop],
             "query:0": sequence.pad_sequences(query, maxlen = self.query_max_len, padding = "post"),
             "alternative:0": alter,
         }
+
+        if hasattr(self.args, 'tagging') and self.args.tagging:
+            d = {"document_tag:0": sequence.pad_sequences(document_tag, maxlen = self.doc_max_len, padding = "post"),
+                 "query_tag:0": sequence.pad_sequences(query_tag, maxlen = self.query_max_len, padding = "post")}
+            data = dict(data, **d)
         if self.args.use_char_embedding:
             d = {"document_char:0": sequence.pad_sequences(
                 [sequence.pad_sequences(self.getitem_char(dataset_x[0], i), maxlen = self.d_char_len, padding = "post") for i in
@@ -446,6 +485,23 @@ class QADataSetBase():
         # if len(document) != len(dataset_y[start:stop]) or len(dataset_y[start:stop]) != samples:
         #     print(len(document), len(dataset_y[start:stop]), samples)
         return data, samples
+
+    def default_tokenizer(self, sentence):
+        _DIGIT_RE = re.compile(r"\d+")
+        sentence = _DIGIT_RE.sub("0", sentence)  # digital replace. because the answer contain the number
+        _CHAR_RE = re.compile(r"[A-Za-z]+$")
+        sentence = _CHAR_RE.sub("a", sentence)  # No char replace. because the answer donnot contain the char
+        _NOCHINESE_RE = re.compile(r"[^\w\u4e00-\u9fff]+")
+        sentence = _NOCHINESE_RE.sub("", sentence)
+        # sentence = " ".join(sentence.split("|"))
+        if not hasattr(self.args, 'tagging') or not self.args.tagging:
+            return list(jieba.cut(sentence))
+        else:
+            result = []
+            for w, t in pseg.cut(sentence):
+                result.append(w)
+                result.append(t)
+            return result
 
 
 class AIC(QADataSetBase):
