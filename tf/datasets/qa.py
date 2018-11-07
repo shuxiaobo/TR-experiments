@@ -17,7 +17,7 @@ from collections import Counter
 from tensorflow.python.platform import gfile
 from tf.datasets.classify_eval import ClassifierEval
 from tensorflow.contrib.keras.api.keras.preprocessing import sequence
-from utils.util import logger, prepare_split, write_file, file2dict
+from utils.util import logger, prepare_split, write_file, file2dict, file_exist
 
 jieba.add_word('不可以')
 jieba.add_word('无法确定')
@@ -97,7 +97,7 @@ class QADataSetBase():
     def load_data(self, file_name = ''):
         # load the train
         train_x, train_y = self.load_file(os.path.join(self.args.tmp_dir, self.__class__.__name__, file_name + self.args.train_file))
-        train_x, train_y = QADataSetBase.sort_corpus(train_x, train_y)
+        # train_x, train_y = QADataSetBase.sort_corpus(train_x, train_y)
 
         # load the valid
         valid_x, valid_y = self.load_file(os.path.join(self.args.tmp_dir, self.__class__.__name__, file_name + self.args.valid_file))
@@ -317,7 +317,7 @@ class QADataSetBase():
         embedding_matrix = init(-0.05, 0.05, (num_words, embed_dim))
         logger('Embeddings: %d x %d' % (num_words, embed_dim))
 
-        if not in_file:
+        if not in_file or not file_exist(in_file):
             return embedding_matrix
 
         def get_dim(file):

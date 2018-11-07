@@ -151,3 +151,9 @@ def file2dict(file_path):
         for l in f:
             result.setdefault(l.strip(), len(result))
     return result
+
+
+def file_exist(fpath):
+    if os.path.exists(fpath) and os.path.getsize(fpath) > 0:
+        return True
+    return False

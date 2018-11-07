@@ -21,7 +21,7 @@ from tensorflow.contrib.rnn import MultiRNNCell, LSTMCell, GRUCell, DropoutWrapp
 
 # TODO: 对于一个歧义词，应该利用上下文的几个单词来区分
 
-class QA5(ModelBase):
+class QA6(ModelBase):
 
     def add_args(self, parser):
         """
@@ -211,30 +211,15 @@ class QA5(ModelBase):
                                                                                initial_state_bw = query_last_states_concat[2 * i + 1],
                                                                                dtype = tf.float32, parallel_iterations = None,
                                                                                swap_memory = True, time_major = False, scope = None)
-
+ 
                 # AOA atted
                 doc_outputs_tmp = tf.concat(doc_outputs, -1)
-                att = tf.squeeze(special_math_ops.einsum('bij,bjk->bik', doc_outputs_tmp, tf.expand_dims(
-                    tf.concat([query_last_states_concat[2 * i][0], query_last_states_concat[2 * i + 1][0]], -1), -1)), -1) / math_ops.sqrt(
-                    tf.cast(tf.shape(doc_outputs_tmp)[-1], dtype = tf.float32))
-                # doc_enc_qry_enc_w = tf.get_variable('doc_enc_qry_enc',
-                #                                     shape = [doc_outputs_tmp.get_shape()[-1], query_outputs.get_shape()[-1]])
-                # att += tf.reduce_sum(
-                #     tf.matmul(tf.einsum('bij,jk->bik', doc_outputs_tmp, doc_enc_qry_enc_w), tf.transpose(query_outputs * query_mask, perm = [0, 2, 1])),
-                #     -1) / math_ops.sqrt(
-                #     tf.cast(tf.shape(doc_outputs_tmp)[-1], dtype = tf.float32))
-                # doc_enc_qry_emb_w = tf.get_variable('doc_enc_qry_emb', shape = [doc_outputs_tmp.get_shape()[-1], query_embed.get_shape()[-1]])
-                # att += tf.reduce_sum(
-                #     tf.matmul(tf.einsum('bij,jk->bik', doc_outputs_tmp, doc_enc_qry_emb_w), tf.transpose(query_embed, perm = [0, 2, 1])), -1) / math_ops.sqrt(
-                #     tf.cast(tf.shape(doc_outputs_tmp)[-1], dtype = tf.float32))
-                # qry_enc_doc_emb = tf.get_variable('qry_enc_doc_emb', shape = [doc_embed.get_shape()[-1], query_outputs.get_shape()[-1]])
-                # att += tf.reduce_sum(tf.matmul(tf.einsum('bij,jk->bik', doc_embed, qry_enc_doc_emb), tf.transpose(query_outputs, perm = [0, 2, 1])),
-                #                      -1) / math_ops.sqrt(tf.cast(tf.shape(doc_outputs_tmp)[-1], dtype = tf.float32))
+                doc_outputs, query_outputs = AttentionFlowMatchLayer(hidden_size = self.args.hidden_size)(doc_outputs_tmp,
+                                                                                                          tf.concat(query_outputs_concat[2 * i:2 * i + 2], -1))
 
-                att = nn_ops.softmax(mask_logits(tf.expand_dims(att, -1), doc_mask), -1) + 1
-                doc_output_con = doc_outputs_tmp * att
+                doc_output_con = doc_outputs_tmp
 
-                doc_outputs_concat.extend(doc_outputs)
+                doc_outputs_concat.append(doc_outputs)
                 doc_last_states_concat.extend(doc_last_states)
 
                 doc_inputs = tf.concat([doc_embed, doc_output_con], -1)
@@ -247,9 +232,6 @@ class QA5(ModelBase):
             doc_encoded = tf.nn.dropout(doc_outputs, keep_prob = keep_prob)
         with tf.variable_scope("attention") as scp:
             bi_att_w = tf.get_variable('bi_att_w', shape = [doc_encoded.get_shape()[-1], query_encoded.get_shape()[-1]])
-            doc_out_query_last_att = tf.squeeze(
-                math_ops.matmul(special_math_ops.einsum('bij,jk->bik', doc_encoded, bi_att_w), tf.expand_dims(query_encoded, axis = -1)),
-                -1)
             # AOA
             att = tf.reduce_sum(tf.einsum('bij,bjk->bik', doc_encoded, tf.transpose(query_outputs, perm = [0, 2, 1])), -1)
             att += tf.reduce_sum(tf.matmul(doc_embed, tf.transpose(query_embed, perm = [0, 2, 1])), -1)

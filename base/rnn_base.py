@@ -12,6 +12,7 @@ from .nlp_base import NLPBase
 from utils.log import logger, save_obj_to_json, err
 from utils.util import visualize_embedding
 import datetime
+from tf.model.optimizer import create_optimizer
 
 
 # noinspection PyAttributeOutsideInit
@@ -68,6 +69,11 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
         """
         define optimization operation
         """
+        if self.args.optimizer == 'CUS':
+            num_train_steps = int(self.dataset.train_nums / self.args.batch_size * self.args.num_epoches)
+            num_warmup_steps = int(num_train_steps * 0.1)
+            self.train_op = create_optimizer(self.loss, self.args.lr, num_train_steps, num_warmup_steps, False)
+            return
         if self.args.optimizer == "SGD":
             optimizer = tf.train.GradientDescentOptimizer(learning_rate = self.args.lr)
         elif self.args.optimizer == "ADAM":
