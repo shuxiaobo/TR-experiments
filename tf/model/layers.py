@@ -292,8 +292,12 @@ class ContextEmbedding:
                                             tf.concat([tf.zeros(shape = [tf.shape(embed)[0], 1], dtype = tf.int64), x[:, 1:]], -1), max_norm = 2.)
             embed3 = tf.nn.embedding_lookup(embedding_matrix,
                                             tf.concat([x[:, :-1], tf.zeros(shape = [tf.shape(embed)[0], 1], dtype = tf.int64)], -1), max_norm = 2.)
+            embed4 = tf.nn.embedding_lookup(embedding_matrix,
+                                            tf.concat([tf.zeros(shape = [tf.shape(embed)[0], 2], dtype = tf.int64), x[:, 2:]], -1), max_norm = 2.)
+            embed5 = tf.nn.embedding_lookup(embedding_matrix,
+                                            tf.concat([x[:, :-2], tf.zeros(shape = [tf.shape(embed)[0], 2], dtype = tf.int64)], -1), max_norm = 2.)
             if self.method == 'concat':
-                embed = tf.concat([embed2, embed, embed3], -1)
+                embed = tf.concat([embed2, embed, embed3, embed4, embed5], -1)
             elif self.method == 'dot':
                 embed = embed * embed2 * embed3
             elif self.method == 'plus':
@@ -882,7 +886,7 @@ def multihead_attention(queries, units, num_heads,
 
 class ContextGRUCell(LayerRNNCell):
 
-    def __init__(self, num_units, activation = None, num_word = 3, reuse = None, kernel_initializer = None, bias_initializer = None,
+    def __init__(self, num_units, activation = None, num_word = 5, reuse = None, kernel_initializer = None, bias_initializer = None,
                  name = None):
         super(ContextGRUCell, self).__init__(_reuse = reuse, name = name)
 
@@ -909,10 +913,9 @@ class ContextGRUCell(LayerRNNCell):
                              % inputs_shape)
 
         input_depth = inputs_shape[1].value / self._num_word
-        self._gate_kernel = self.add_variable(
-            "gates/%s" % _WEIGHTS_VARIABLE_NAME,
-            shape = [input_depth + self._num_units, 2 * self._num_units],
-            initializer = self._kernel_initializer)
+        self.input_depth = input_depth
+        self._gate_kernel = self.add_variable("gates/%s" % _WEIGHTS_VARIABLE_NAME, shape = [ self._num_units, input_depth],
+                                              initializer = self._kernel_initializer)
         self._gate_bias = self.add_variable(
             "gates/%s" % _BIAS_VARIABLE_NAME,
             shape = [2 * self._num_units],
@@ -920,10 +923,8 @@ class ContextGRUCell(LayerRNNCell):
                 self._bias_initializer
                 if self._bias_initializer is not None
                 else init_ops.constant_initializer(1.0, dtype = self.dtype)))
-        self._candidate_kernel = self.add_variable(
-            "candidate/%s" % _WEIGHTS_VARIABLE_NAME,
-            shape = [input_depth + self._num_units, self._num_units],
-            initializer = self._kernel_initializer)
+        self._candidate_kernel = self.add_variable("candidate/%s" % _WEIGHTS_VARIABLE_NAME, shape = [input_depth + self._num_units, self._num_units],
+                                                   initializer = self._kernel_initializer)
         self._candidate_bias = self.add_variable(
             "candidate/%s" % _BIAS_VARIABLE_NAME,
             shape = [self._num_units],
@@ -932,14 +933,15 @@ class ContextGRUCell(LayerRNNCell):
                 if self._bias_initializer is not None
                 else init_ops.zeros_initializer(dtype = self.dtype)))
 
-        self._rebuild_state_kernel = self.add_variable("_rebuild_state_kernel", shape = [self._num_units, input_depth], initializer = self._kernel_initializer)
+        self._rebuild_state_kernel = self.add_variable("_rebuild_state_kernel", shape = [input_depth + self._num_units, self._num_units],
+                                                       initializer = self._kernel_initializer)
         self.built = True
 
     def call(self, inputs, state):
         """Gated recurrent unit (GRU) with nunits cells."""
         inputs_tmp = tf.transpose(array_ops.split(value = inputs, num_or_size_splits = self._num_word, axis = -1), perm = [1, 0, 2])
-        rebuild_state = math_ops.matmul(math_ops.tanh(state), self._rebuild_state_kernel)
-        new_m = multihead_attention(array_ops.concat([inputs_tmp, tf.expand_dims(rebuild_state, 1)], 1), self._num_units, self._num_word + 1,
+        memory = math_ops.matmul(state, self._gate_kernel)
+        new_m = multihead_attention(tf.concat([inputs_tmp, tf.expand_dims(memory, 1)], 1), self.input_depth, self._num_word,
                                     memory = None,
                                     seq_len = None,
                                     scope = "Multi_Head_Attention",
@@ -948,21 +950,23 @@ class ContextGRUCell(LayerRNNCell):
                                     is_training = True,
                                     bias = True,
                                     dropout = 0.0)
+        new_m = highway(x = new_m, size = None, activation = math_ops.tanh, num_layers = 2, scope = "highway", dropout = 0.0, reuse = tf.AUTO_REUSE)
         new_m = tf.reduce_max(new_m, 1)
         inputs = inputs_tmp[:, math.ceil(self._num_word / 2.0)]
-        gate_inputs = math_ops.matmul(array_ops.concat([inputs, state], 1), self._gate_kernel)
-        gate_inputs = nn_ops.bias_add(gate_inputs, self._gate_bias)
-
-        value = math_ops.sigmoid(gate_inputs)
-        r, u = array_ops.split(value = value, num_or_size_splits = 2, axis = 1)
-
-        r_state = r * new_m
-
-        candidate = math_ops.matmul(array_ops.concat([inputs, r_state], 1), self._candidate_kernel)
-        candidate = nn_ops.bias_add(candidate, self._candidate_bias)
-
-        c = self._activation(candidate)
-        new_h = u * state + (1 - u) * c
+        new_h = self._activation(math_ops.matmul(math_ops.tanh(tf.concat([new_m, state], -1)), self._rebuild_state_kernel))
+        # gate_inputs = math_ops.matmul(array_ops.concat([inputs, state], 1), self._gate_kernel)
+        # gate_inputs = nn_ops.bias_add(gate_inputs, self._gate_bias)
+        #
+        # value = math_ops.sigmoid(gate_inputs)
+        # r, u = array_ops.split(value = value, num_or_size_splits = 2, axis = 1)
+        #
+        # r_state = r * state
+        #
+        # candidate = math_ops.matmul(array_ops.concat([inputs, r_state], 1), self._candidate_kernel)
+        # candidate = nn_ops.bias_add(candidate, self._candidate_bias)
+        #
+        # c = self._activation(candidate)
+        # new_h = u * state + (1 - u) * c
         return new_h, new_h
 
 

@@ -113,7 +113,10 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
 
         self.dataset = getattr(sys.modules["tf.datasets"], self.args.dataset)(self.args)
 
-        self.embedding_matrix = self.dataset.get_embedding_matrix(is_char_embedding = False)
+        if hasattr(self.dataset, 'get_embedding_matrix'):
+            self.embedding_matrix = self.dataset.get_embedding_matrix(is_char_embedding = False)
+        else:
+            logger('No function named get_embedding_matrix in data set %s, use the random initialization' % self.dataset.__class__.__name__)
 
         self.max_len = self.dataset.max_len
         self.word2id_size = self.dataset.word2id_size
@@ -259,7 +262,8 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
         if val_acc > self.best_val_acc:
             self.patience = self.args.patience
             self.best_val_acc = val_acc
-            self.save_weight(val_acc, step)
+            if self.args.save_val:
+                self.save_weight(val_acc, step)
         elif self.patience == 1:
             logger("Oh u, stop training.")
             exit(0)
@@ -272,7 +276,8 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
                                os.path.join(self.args.weight_path,
                                             "{}-val_acc-{:.4f}.models-{}".format(self.model_name, val_acc, datetime.datetime.now())),
                                global_step = step)
-        visualize_embedding(word2id = self.dataset.word2id, embedding_matrix_name = self.embedding.name, writer = self.writer)
+        if self.args.tensorboard and self.args.visualize_embedding:
+            visualize_embedding(word2id = self.dataset.word2id, embedding_matrix_name = self.embedding.name, writer = self.writer)
         logger("Save models to {}.".format(path))
 
     def load_weight(self):
@@ -336,6 +341,7 @@ class ModelBase(NLPBase, metaclass = abc.ABCMeta):
             _ = self.loss
             _ = self.correct_prediction
             _ = self.prediction
+            _ = self.embedding
             if self.args.visualize_embedding:
                 _ = self.embedding
         except AttributeError as e:

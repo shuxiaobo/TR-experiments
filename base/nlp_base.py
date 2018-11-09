@@ -98,7 +98,7 @@ class NLPBase(object):
 
         group1.add_argument("--save_val", default = False, type = bool, help = "whether save the validation prediction result.")
 
-        group1.add_argument("--tensorboard", default = True, type = bool, help = "whether save tensorboard result.")
+        group1.add_argument("--tensorboard", default = False, type = bool, help = "whether save tensorboard result.")
 
         # data specific argument
         group2 = parser.add_argument_group("2.Data specific options")
@@ -155,9 +155,9 @@ class NLPBase(object):
 
         group3.add_argument("--l2", default = 0.005, type = float, help = "l2 regularization weight")
 
-        group3.add_argument("--num_layers", default = 2, type = int, help = "RNN layer number")
+        group3.add_argument("--num_layers", default = 1, type = int, help = "RNN layer number")
 
-        group3.add_argument("--rnn_type", default = "modified", type = str_or_none,
+        group3.add_argument("--rnn_type", default = "GRu", type = str_or_none,
                             help = "RNN type, use GRU, LSTM, vanilla rnn, modified rnn, indrnn")
 
         group3.add_argument("--batch_size", default = 256, type = int, help = "batch_size")

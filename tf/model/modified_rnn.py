@@ -9,23 +9,25 @@ from base.rnn_base import ModelBase
 from tensorflow.python.ops import nn_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.contrib.rnn import MultiRNNCell, LSTMCell, GRUCell, RNNCell
+from tf.model.layers import *
 
 
 class ModifiedRNN(ModelBase):
 
     def create_model(self):
         RECURRENT_MAX_ABS = pow(2, 1 / self.max_len)
-        x = tf.placeholder(name = 'document', shape = [None, self.max_len], dtype = tf.int32)
+        x = tf.placeholder(name = 'document', shape = [None, self.max_len], dtype = tf.int64)
         y_true = tf.placeholder(name = 'y_true', shape = [None], dtype = tf.int64)
+        keep_prob = tf.placeholder(name = 'keep_prob', dtype = tf.float32)
 
         embedding = tf.get_variable('embedding', initializer = tf.random_normal_initializer,
                                     shape = [self.word2id_size, self.args.embedding_dim],
                                     dtype = tf.float32)
-
+        self.embedding = embedding
         doc_lens = tf.reduce_sum(tf.sign(tf.abs(x)), axis = -1)
 
         if self.args.rnn_type.lower() == 'modified':
-            CELL = ModifiedRNNCell
+            CELL = ContextGRUCell
         elif self.args.rnn_type.lower() == 'lstm':
             CELL = LSTMCell
         elif self.args.rnn_type.lower() == 'gru':
@@ -53,21 +55,15 @@ class ModifiedRNN(ModelBase):
             raise NotImplementedError("No activation named : %s implemented. Check." % self.args.rnn_type)
 
         with tf.variable_scope('encoder') as s:
-            x_emb = tf.nn.embedding_lookup(params = embedding, ids = x)
-
+            if self.args.rnn_type.lower() == 'modified':
+                x_emb = ContextEmbedding(method = 'concat')(x = x, embedding_matrix = embedding)
+            else:
+                x_emb = tf.nn.embedding_lookup(params = embedding, ids = x)
             if self.args.bidirectional:
                 cell_fw = MultiRNNCell([
                     CELL(num_units = self.args.hidden_size, activation = activation) for _ in range(self.args.num_layers)])
                 cell_bw = MultiRNNCell([
                     CELL(num_units = self.args.hidden_size, activation = activation) for _ in range(self.args.num_layers)])
-                # fw_initializer = tf.random_normal_initializer(-RECURRENT_MAX_ABS, RECURRENT_MAX_ABS)
-                # bw_initializer = tf.random_normal_initializer(-RECURRENT_MAX_ABS, RECURRENT_MAX_ABS)
-                # cell_fw = MultiRNNCell([
-                #     IndRNNCell(num_units = self.args.hidden_size, recurrent_max_abs = RECURRENT_MAX_ABS, recurrent_kernel_initializer = fw_initializer)
-                #     for _ in range(self.args.num_layers)])
-                # cell_bw = MultiRNNCell([
-                #     IndRNNCell(num_units = self.args.hidden_size, recurrent_max_abs = RECURRENT_MAX_ABS, recurrent_kernel_initializer = bw_initializer)
-                #     for _ in range(self.args.num_layers)])
 
                 outputs, outputs_states = tf.nn.bidirectional_dynamic_rnn(cell_fw = cell_fw, cell_bw = cell_bw, inputs = x_emb, sequence_length = doc_lens,
                                                                           initial_state_fw = None, initial_state_bw = None,
@@ -99,3 +95,5 @@ class ModifiedRNN(ModelBase):
         self.correct_prediction = tf.reduce_sum(tf.sign(tf.cast(tf.equal(tf.argmax(result, -1), y_true), dtype = tf.int32)))
 
         self.accuracy = self.correct_prediction / tf.shape(x)[0]
+
+        self.prediction = tf.argmax(result, -1)
