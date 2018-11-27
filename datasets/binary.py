@@ -86,25 +86,25 @@ class BinaryClassifierEval(Dataset):
 class CR(BinaryClassifierEval):
     def __init__(self, args, is_train = True, seed = 1111):
         logging.debug('***** Transfer task : CR *****\n\n')
-        super(self.__class__, self).__init__(args, is_train, seed)
+        super(self.__class__, self).__init__(args, is_train, seed = seed)
 
 
 class MR(BinaryClassifierEval):
     def __init__(self, args, is_train = True, seed = 1111):
         logging.debug('***** Transfer task : MR *****\n\n')
-        super(self.__class__, self).__init__(args, is_train, seed)
+        super(self.__class__, self).__init__(args, is_train, seed = seed)
 
 
 class SUBJ(BinaryClassifierEval):
     def __init__(self, args, is_train = True, seed = 1111):
         logging.debug('***** Transfer task : SUBJ *****\n\n')
-        super(self.__class__, self).__init__(args, is_train, seed)
+        super(self.__class__, self).__init__(args, is_train, seed = seed)
 
 
 class MPQA(BinaryClassifierEval):
     def __init__(self, args, is_train = True, seed = 1111):
         logging.debug('***** Transfer task : MPQA *****\n\n')
-        super(self.__class__, self).__init__(args, is_train, seed)
+        super(self.__class__, self).__init__(args, is_train, seed = seed)
 
 
 class Kaggle(BinaryClassifierEval):

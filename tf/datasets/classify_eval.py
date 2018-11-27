@@ -172,7 +172,7 @@ class MR(ClassifierEval):
 class SUBJ(ClassifierEval):
     def __init__(self, args, seed = 1111):
         logging.debug('***** Transfer task : SUBJ *****\n\n')
-        super(self.__class__, self).__init__(args, seed)
+        super(self.__class__, self).__init__(args, seed = seed)
 
 
 class MPQA(ClassifierEval):
