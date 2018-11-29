@@ -40,13 +40,14 @@ class NGramSumRNN(BaseModel):
 
         self.embedding = nn.Embedding(vocabulary_size, embedding_size)
         self.pos_embedding = nn.Embedding(5, embedding_size)
+        self.pos_embedding2 = nn.Embedding(5, embedding_size)
         self.rnn1 = nn.LSTM(embedding_size * 3, hidden_size = hidden_size, num_layers = rnn_layers, bias = False, bidirectional = bidirection,
                             batch_first = True)
         self.linear = nn.Linear(hidden_size * 2 if bidirection else hidden_size, num_class, bias = False)
         self.params = nn.Parameter(torch.eye(embedding_size * 3))
         self.dropout = nn.Dropout(p = self.args.keep_prob)
-        self.param = nn.Parameter(torch.ones(3, 1))
-        self.param2 = nn.Parameter(torch.ones(5, 1))
+        self.param = nn.Parameter(torch.eye(embedding_size, embedding_size))
+        self.param2 = nn.Parameter(torch.eye(embedding_size, embedding_size))
         self.atten = SelfAttention(args, embedding_size * 3, 3)
         self.atten2 = SelfAttention(args, embedding_size * 5, 5)
 
@@ -71,14 +72,14 @@ class NGramSumRNN(BaseModel):
         #
         batch_size = x.shape[0]
         pos1 = self.pos_embedding(LongTensor([0, 1, 2]))
-        pos2 = self.pos_embedding(LongTensor([3,  1,  4]))
+        pos2 = self.pos_embedding2(LongTensor([3, 0, 1, 2, 4]))
 
-        ngram3 = torch.stack([x_embed2, x_embed, x_embed3], 2)
-        ngram5 = torch.stack([x_embed4,  x_embed, x_embed5], 2)
+        ngram3 = torch.stack([x_embed2, x_embed, x_embed3], -2)
+        ngram5 = torch.stack([x_embed4, x_embed2, x_embed, x_embed3, x_embed5], -2)
         ngram3 = F.softmax(torch.sum(ngram3 * pos1, -1), -2).unsqueeze(-1) * ngram3
         ngram5 = F.softmax(torch.sum(ngram5 * pos2, -1), -2).unsqueeze(-1) * ngram5
 
-        # x_embed = torch.cat([torch.sum(ngram3, 2).squeeze(2), torch.sum(ngram5, 2).squeeze(2), x_embed], -1)
+        # x_embed = torch.cat([torch.sum(ngram3, 2).squeeze(2), torch.sum(ngram5, 2).squeeze(2), x_embed], -1) * mask.unsqueeze(2)
         x_embed = torch.cat([ngram3.max(2)[0], ngram5.max(2)[0], x_embed], -1)
 
         outputs, (h, c) = self.rnn1(x_embed)

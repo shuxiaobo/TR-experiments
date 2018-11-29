@@ -75,7 +75,7 @@ def train(args):
         best_epoch = best_epoch if best_acc > testacc else i
         best_acc = best_acc if best_acc > testacc else testacc
         if args.save_val:
-            logging.error('Test result acc1: %.4f | best acc: %.4f | best epoch : %d' % (testacc, best_acc, best_epoch))
+            logging.info('Test result acc1: %.4f | best acc: %.4f | best epoch : %d' % (testacc, best_acc, best_epoch))
     return [best_acc, train_dataloader.dataset.__class__.__name__, best_epoch]
 
 

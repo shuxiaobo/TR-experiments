@@ -91,14 +91,14 @@ def main():
 
     group3.add_argument("--num_epoches", default = 200, type = int, help = "max epoch iterations")
 
-    group3.add_argument("--num_words", default = 20000, type = int, help = "max length of the sentences")
+    group3.add_argument("--num_words", default = 30000, type = int, help = "max length of the sentences")
 
     group3.add_argument("--skip_top", default = 20, type = int, help = "max length of the sentences")
 
     # -----------------------------------------------------------------------------------------------------------
     group4 = parser.add_argument_group("4.model specific parameters")
 
-    group4.add_argument('--kernel_size', default = 6, type = int, help = 'kernel size for n-gram.')
+    group4.add_argument('--kernel_size', default = 3, type = int, help = 'kernel size for n-gram.')
 
     group4.add_argument('--stride', default = 2, type = int, help = 'stride size for n-gram.')
 
@@ -112,13 +112,15 @@ def main():
 
     group4.add_argument('--dataset', default = 'trec', type = str, help = 'activation function for RNN ')
 
+    group4.add_argument('--target', default = 0.0, type = float, help = '')
     args = parser.parse_args()
     torch.cuda.set_device(args.gpu)
 
     pprint(vars(args), indent = 4)
     if args.mode == 1:
         if args.task == 0:
-            train(args)
+            i, d, e = train(args)
+            print(' %s : acc %.4f, epoch : %d, target %.4f  \n' % (d, i, e, args.target))
         elif args.task == 1:
             train_nli(args)
         else:
@@ -132,9 +134,10 @@ def main():
                 args.dataset = d
                 acces.append(train(args) + [t])
             print('===' * 10 + '***' + '===' * 10)
+            print('|name\t|accuracy\t|epoch\t|target\t|\n| :------| ------: | ------: |------: |')
             for i, d, e, t in acces:
                 info = '' if i * 100 < t else 'Y'
-                print(' %s : acc %.4f, epoch : %d, target %.4f  \t %s\n' % (d, i, e, t, info))
+                print('| %s | %.4f| %d| %.4f| %s |\n' % (d, i, e, t, info))
             print(datetime.datetime.now())
 
     elif args.mode == 0:
