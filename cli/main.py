@@ -6,10 +6,12 @@ import argparse
 import torch
 import sys
 import os
+import copy
 from pprint import pprint
+from torch.multiprocessing import Process, Pool, Process, set_start_method
 
 sys.path.append(os.getcwd() + '/..')
-torch.cuda.set_device(0)
+
 from cli.train import train
 from cli.preprocess import preprocess
 from cli.train_snli import train as train_nli
@@ -39,7 +41,13 @@ def main():
 
     group1.add_argument("--print_every_n", default = 10, type = int, help = "print performance every n steps")
 
-    group1.add_argument("--save_val", default = False, type = bool, help = "whether save the validation prediction result.")
+    group1.add_argument("--save_val", default = True, type = bool, help = "whether save the validation prediction result.")
+
+
+
+    group1.add_argument("--gpu", default = 0, type = int, help = "GPU id be used.")
+
+
 
     group1.add_argument('--log_dir', default = '../logs/', type = str, help = 'tensorboard log dir')
     # data specific argument
@@ -71,7 +79,7 @@ def main():
 
     group3.add_argument("--lr", default = 3e-3, type = float, help = "lr for model learning")
 
-    group3.add_argument("--keep_prob", default = 0.5, type = float, help = "the keep prob")
+    group3.add_argument("--keep_prob", default = 0.8, type = float, help = "the keep prob")
 
     group3.add_argument("--optimizer", default = "ADAM", choices = ["SGD", "ADAM", "ADAD"], help = "optimize algorithms, SGD or Adam")
 
@@ -90,21 +98,22 @@ def main():
     # -----------------------------------------------------------------------------------------------------------
     group4 = parser.add_argument_group("4.model specific parameters")
 
-    group4.add_argument('--kernel_size', default = 3, type = int, help = 'kernel size for n-gram.')
+    group4.add_argument('--kernel_size', default = 6, type = int, help = 'kernel size for n-gram.')
 
-    group4.add_argument('--stride', default = 3, type = int, help = 'stride size for n-gram.')
+    group4.add_argument('--stride', default = 2, type = int, help = 'stride size for n-gram.')
 
     group4.add_argument('--bidirectional', default = True, type = bool, help = 'Use the bi-directional rnn.')
 
-    group4.add_argument('--task', default = 1, type = int, help = 'task 1 for nli, 0 for classify')
+    group4.add_argument('--task', default = 2, type = int, help = 'task 1 for nli, 0 for classify')
 
     group4.add_argument('--num_layers', default = 1, type = int, help = 'number of layers')
 
     group4.add_argument('--activation', default = 'relu', type = str, help = 'activation function for RNN ')
 
-    group4.add_argument('--dataset', default = 'SNLI', type = str, help = 'activation function for RNN ')
+    group4.add_argument('--dataset', default = 'trec', type = str, help = 'activation function for RNN ')
 
     args = parser.parse_args()
+    torch.cuda.set_device(args.gpu)
 
     pprint(vars(args), indent = 4)
     if args.mode == 1:
@@ -112,6 +121,22 @@ def main():
             train(args)
         elif args.task == 1:
             train_nli(args)
+        else:
+            import datetime
+            print(datetime.datetime.now())
+            args.save_val = False
+            all_dataset = [('cr', 80.5), ('mr', 75.7), ('trec', 89.0), ('mpqa', 83.7), ('sst', 81.4), ('subj', 91.4), ]
+            acces = list()
+
+            for d, t in all_dataset:
+                args.dataset = d
+                acces.append(train(args) + [t])
+            print('===' * 10 + '***' + '===' * 10)
+            for i, d, e, t in acces:
+                info = '' if i * 100 < t else 'Y'
+                print(' %s : acc %.4f, epoch : %d, target %.4f  \t %s\n' % (d, i, e, t, info))
+            print(datetime.datetime.now())
+
     elif args.mode == 0:
         preprocess(args)
     else:

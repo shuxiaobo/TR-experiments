@@ -14,6 +14,7 @@ from model.model1 import NGramRNN
 from model.model2 import NGramRNN2
 from model.model3 import NGramRNN3
 from model.model4 import NGramConcatRNN
+from model.model5 import NGramSumRNN
 from datasets.imdb import IMDB
 from model.baseline import BaseLineRNN
 from tensorboardX import SummaryWriter
@@ -56,7 +57,7 @@ def train(args):
             writer.add_scalar('loss', loss_sum / (j + 1), iter)
             writer.add_scalar('accuracy', acc_sum / samples_num, iter)
 
-            if (j + 1) % args.print_every_n == 0:
+            if (j + 1) % args.print_every_n == 0 and args.save_val:
                 logging.info('train: Epoch = %d | iter = %d/%d | ' %
                              (i, j, len(train_dataloader)) + 'loss sum = %.2f | accuracy : %.4f' % (
                                  loss_sum * 1.0 / j, acc_sum / samples_num))
@@ -65,15 +66,17 @@ def train(args):
                     if param.grad is not None:
                         writer.add_histogram(name, param.clone().cpu().data.numpy(), j)
                         writer.add_histogram(name + '/grad', param.grad.clone().cpu().data.numpy(), j)
-
-        logging.info("Testing...... | Model : {0} | Task : {1}".format(model.__class__.__name__, train_dataloader.dataset.__class__.__name__))
+        if args.save_val:
+            logging.info("Testing...... | Model : {0} | Task : {1}".format(model.__class__.__name__, train_dataloader.dataset.__class__.__name__))
         testacc = test(args, model, test_dataloader)
         if best_acc < testacc and train_dataloader.dataset.__class__.__name__ == 'Kaggle':
             logger('Generate the result for sumbmission...')
             test_kaggle(args, model, train_dataloader.dataset.word2id)
         best_epoch = best_epoch if best_acc > testacc else i
         best_acc = best_acc if best_acc > testacc else testacc
-        logging.error('Test result acc1: %.4f | best acc: %.4f | best epoch : %d' % (testacc, best_acc, best_epoch))
+        if args.save_val:
+            logging.error('Test result acc1: %.4f | best acc: %.4f | best epoch : %d' % (testacc, best_acc, best_epoch))
+    return [best_acc, train_dataloader.dataset.__class__.__name__, best_epoch]
 
 
 def test_kaggle(args, model, word2id):
@@ -198,10 +201,10 @@ def init_from_scrach(args):
     logging.info('Test data max length : %d' % test_dataset.max_len)
 
     logging.info('Initiating the model...')
-    # model = FusionModel(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
+    # model = FusionModel(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim*3, vocabulary_size = len(train_dataset.word2id),
     #                     num_layers = args.num_layers,
     #                     bidirection = args.bidirectional, num_class = train_dataset.num_class)
-    model = NGramConcatRNN(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
+    model = NGramSumRNN(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
                         rnn_layers = args.num_layers,
                         bidirection = args.bidirectional, kernel_size = args.kernel_size, stride = args.stride, num_class = train_dataset.num_class)
     model.cuda()

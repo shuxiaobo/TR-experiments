@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from .base_model import BaseModel
 from tensorflow.contrib.keras.api.keras.preprocessing import sequence
-
+from model.layers import SelfAttention
 USE_CUDA = torch.cuda.is_available()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 FloatTensor = torch.cuda.FloatTensor if USE_CUDA else torch.FloatTensor
@@ -36,6 +36,7 @@ class NGramConcatRNN(BaseModel):
         self.params = nn.Parameter(torch.eye(embedding_size * 3))
         self.dropout = nn.Dropout(p = self.args.keep_prob)
         self.param = nn.Parameter(torch.randn(self.stride, embedding_size))
+        self.atten = SelfAttention(args, inputs_size = embedding_size * 3, num_heads = 3)
 
     def forward(self, x, y):
         max_len = x.shape[1]

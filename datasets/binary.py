@@ -38,7 +38,7 @@ class BinaryClassifierEval(Dataset):
             data_y = list()
             for line in f.read().splitlines():
                 line = line.strip().split(' ')
-                if len(line) <= 3:
+                if len(line) <= self.args.kernel_size:
                     continue
                 data_x.append(line[:-1])
                 data_y.append(int(line[-1]))

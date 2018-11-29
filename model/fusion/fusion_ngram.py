@@ -29,10 +29,10 @@ class FusionNGramRNN(BaseModel):
         self.rnn = nn.ModuleList()
         self.embedding = nn.Embedding(vocabulary_size, embedding_size)
         self.rnn1 = nn.LSTM(embedding_size, hidden_size, num_layers = 1, bias = False, bidirectional = bidirection, batch_first = True)
-        self.rnn2 = nn.LSTM(embedding_size * 3 if bidirection else embedding_size * 2, hidden_size, 1, bias = False, bidirectional = bidirection,
+        self.rnn2 = nn.LSTM(embedding_size + hidden_size + int(bidirection) * hidden_size, hidden_size, 1, bias = False, bidirectional = bidirection,
                             batch_first = True)
         self.rnn.append(nn.GRU(embedding_size, hidden_size, num_layers = 1, bias = False, bidirectional = bidirection, batch_first = True))
-        for i in range(1, rnn_layers):
+        for i in range(1, 3):
             self.rnn.append(nn.GRU(embedding_size + hidden_size * 2 + hidden_size + int(bidirection) * hidden_size, hidden_size, num_layers = 1, bias = False,
                                    bidirectional = bidirection, batch_first = True))
         # self.linear = nn.Linear(embedding_size * 2 if bidirection else embedding_size, 2, bias = False)
@@ -58,7 +58,7 @@ class FusionNGramRNN(BaseModel):
         o, (h, c) = self.rnn1(torch.unsqueeze(x_embed[:, 0, :], 1))
         expanded_out.append(o)
         for i in range(1, max_len):
-            o, (h, c) = self.rnn1(x_embed[:, i - 1:i + 1, :])
+            o, (h, c) = self.rnn1(x_embed[:, i - 1:i + 1, :], (h, c))
             expanded_out.append(o.max(1)[0].view(x_embed.shape[0], 1, -1))
         expanded_out = torch.cat(expanded_out, 1)
 

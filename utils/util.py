@@ -15,7 +15,7 @@ from collections import Counter
 from tensorflow.python.platform import gfile
 from tensorflow.contrib.tensorboard.plugins import projector
 
-logging.basicConfig(level = logging.DEBUG, format = '%(asctime)s %(filename)s[line:%(lineno)d]： %(message)s', datefmt = '%Y-%m-%d %I:%M:%S')
+logging.basicConfig(level = logging.ERROR, format = '%(asctime)s %(filename)s[line:%(lineno)d]： %(message)s', datefmt = '%Y-%m-%d %I:%M:%S')
 logger = logging.info
 
 

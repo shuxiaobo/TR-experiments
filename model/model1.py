@@ -29,7 +29,8 @@ class NGramRNN(BaseModel):
 
         self.embedding = nn.Embedding(vocabulary_size, embedding_size)
         self.rnn1 = nn.LSTM(embedding_size, hidden_size, num_layers = rnn_layers, bias = False, bidirectional = bidirection, batch_first = True)
-        self.rnn2 = nn.LSTM(embedding_size * 3 if bidirection else embedding_size * 2, hidden_size, rnn_layers, bias = False, bidirectional = bidirection,
+        self.rnn2 = nn.LSTM(embedding_size + hidden_size * 2 if bidirection else embedding_size * 2, hidden_size, rnn_layers, bias = False,
+                            bidirectional = bidirection,
                             batch_first = True)
 
         # self.linear = nn.Linear(embedding_size * 2 if bidirection else embedding_size, 2, bias = False)
