@@ -15,8 +15,9 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 from .base_model import BaseModel
+from utils.util import gather_rnnstate
 from tensorflow.contrib.keras.api.keras.preprocessing import sequence
-from model.layers import SelfAttention
+from model.layers import SelfAttention, Highway
 
 USE_CUDA = torch.cuda.is_available()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -42,7 +43,9 @@ class NGramSumRNN(BaseModel):
         self.pos_embedding = nn.Embedding(5, embedding_size)
         self.pos_embedding2 = nn.Embedding(5, embedding_size)
         self.rnn1 = nn.LSTM(embedding_size * 3, hidden_size = hidden_size, num_layers = rnn_layers, bias = False, bidirectional = bidirection,
-                            batch_first = True)
+                           batch_first = True)
+        self.rnn2 = nn.GRU(embedding_size, hidden_size = int(hidden_size / 2), num_layers = rnn_layers, bias = False, bidirectional = bidirection,
+                           batch_first = True)
         self.linear = nn.Linear(hidden_size * 2 if bidirection else hidden_size, num_class, bias = False)
         self.params = nn.Parameter(torch.eye(embedding_size * 3))
         self.dropout = nn.Dropout(p = self.args.keep_prob)
@@ -50,12 +53,10 @@ class NGramSumRNN(BaseModel):
         self.param2 = nn.Parameter(torch.eye(embedding_size, embedding_size))
         self.atten = SelfAttention(args, embedding_size * 3, 3)
         self.atten2 = SelfAttention(args, embedding_size * 5, 5)
+        self.hiway = Highway(args, layer_num = 1, size = embedding_size * 3)
 
     def forward(self, x, y):
         max_len = x.shape[1]
-        if max_len % self.stride:
-            max_len += self.stride - (max_len % self.stride)
-            x = sequence.pad_sequences(x, maxlen = max_len, padding = 'post')
         x = LongTensor(x)
         mask = torch.where(x > 0, torch.ones_like(x, dtype = torch.float32), torch.zeros_like(x, dtype = torch.float32))
         x_embed = self.embedding(x)
@@ -81,10 +82,11 @@ class NGramSumRNN(BaseModel):
 
         # x_embed = torch.cat([torch.sum(ngram3, 2).squeeze(2), torch.sum(ngram5, 2).squeeze(2), x_embed], -1) * mask.unsqueeze(2)
         x_embed = torch.cat([ngram3.max(2)[0], ngram5.max(2)[0], x_embed], -1)
+        # x_embed = self.hiway(x_embed.transpose(1, 2)).transpose(1, 2)
 
         outputs, (h, c) = self.rnn1(x_embed)
-        output_maxpooled, _ = torch.max(outputs, 1)
-        # output_maxpooled = self.gather_rnnstate(outputs, mask).squeeze(1)
+        # output_maxpooled, _ = torch.max(outputs, 1)
+        output_maxpooled = gather_rnnstate(outputs, mask).squeeze(1)
         class_prob = self.linear(output_maxpooled)
         return class_prob, F.dropout(output_maxpooled)
 
