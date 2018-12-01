@@ -47,6 +47,11 @@ class Initialized_Conv1d(nn.Module):
             nn.init.xavier_uniform_(self.out.weight)
 
     def forward(self, x):
+        """
+        Shape:
+            - Input: :math:`(N, C_{in}, L_{in})`
+            - Output: :math:`(N, C_{out}, L_{out})` where
+        """
         if self.relu == True:
             return F.relu(self.out(x))
         else:
@@ -95,13 +100,14 @@ class Highway(nn.Module):
 
     def forward(self, x):
         # x: shape [batch_size, hidden_size, length]
+        x = x.transpose(-1, -2)
         for i in range(self.n):
             gate = F.sigmoid(self.gate[i](x))
             nonlinear = self.linear[i](x)
             nonlinear = F.dropout(nonlinear, p = self.args.keep_prob, training = self.training)
             x = gate * nonlinear + (1 - gate) * x
             # x = F.relu(x)
-        return x
+        return x.transpose(-1, -2)
 
 
 class SelfAttention(nn.Module):
@@ -117,8 +123,13 @@ class SelfAttention(nn.Module):
         nn.init.constant_(bias, 0)
         self.bias = nn.Parameter(bias)
 
-    def forward(self, queries, mask):
-        memory = queries
+    def forward(self, queries, mask, memory = None):
+        """
+        Shape
+            - memory: math:`(N, C_{in}, L_{in})`
+            - queries: math:`(N, C_{in}, L_{in})`
+        """
+        memory = queries if memory is None else memory
 
         memory = self.mem_conv(memory)
         query = self.query_conv(queries)

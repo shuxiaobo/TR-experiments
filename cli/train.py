@@ -211,6 +211,7 @@ def init_from_scrach(args):
     model.init_optimizer()
     logging.info('Model {} initiate over...'.format(model.__class__.__name__))
     logger(model)
+    print(model)
     return train_dataloader, test_dataloader, model
 
 #

@@ -150,6 +150,45 @@ two pos emb shouwei
 | SST | 0.8214| 152| 81.4000| 
 | SUBJ | 0.8940| 70| 91.4000|
 
+## 2018年11月30日
+* baseline lstm gather
+baseline lstm gather
+==============================***==============================
+
+|name	|accuracy	|epoch	|target	|
+| :------| ------: | ------: |------: |
+| CR | 0.7939| 41| 80.5000|  |
+| MR | 0.7492| 96| 75.7000|  |
+| TREC | 0.8780| 199| 89.0000|  |
+| MPQA | 0.8621| 59| 83.7000| Y |
+| SST | 0.8093| 166| 81.4000|  |
+| SUBJ | 0.8960| 192| 91.4000|  |
+
+baseline lstm maxpool
+==============================***==============================
+
+|name	|accuracy	|epoch	|target	|
+| :------| ------: | ------: |------: |
+| CR | 0.7739| 61| 80.5000|  |
+| MR | 0.7332| 175| 75.7000|  |
+| TREC | 0.8480| 192| 89.0000|  |
+| MPQA | 0.8770| 33| 83.7000| Y |
+| SST | 0.7165| 4| 81.4000|  |
+| SUBJ | 0.8730| 68| 91.4000|  |
+
+baseline gru gather
+==============================***==============================
+
+|name   |accuracy       |epoch  |target |
+| :------| ------: | ------: |------: |
+| CR | 0.7832| 37| 80.5000|  |
+| MR | 0.7562| 48| 75.7000|  |
+| TREC | 0.8540| 185| 89.0000|  |
+| MPQA | 0.8600| 65| 83.7000| Y |
+| SST | 0.8110| 58| 81.4000|  |
+| SUBJ | 0.8985| 196| 91.4000|  |
+
+
 * 尝试把context的表示和当前词表示分开表示，在分类之前拼接
 
 two gru
@@ -202,6 +241,18 @@ lstm max gather
 | SST | 0.8214| 100| 81.4000| Y |
 | SUBJ | 0.8980| 85| 91.4000|  |
 
+lstm max gather
+==============================***==============================
+
+|name	|accuracy	|epoch	|target	|
+| :------| ------: | ------: |------: |
+| CR | 0.7872| 96| 80.5000|  |
+| MR | 0.6242| 3| 75.7000|  |
+| TREC | 0.8740| 182| 89.0000|  |
+| MPQA | 0.8643| 80| 83.7000| Y |
+| SST | 0.8154| 198| 81.4000| Y |
+| SUBJ | 0.8940| 106| 91.4000|  |
+
 gru one emb gather
 ==============================***==============================
 
@@ -225,3 +276,100 @@ GRU max
 | MPQA | 0.8537| 88| 83.7000| Y |
 | SST | 0.8137| 187| 81.4000|  |
 | SUBJ | 0.8640| 32| 91.4000|  |
+
+only use one context gru max
+==============================***==============================
+
+|name	|accuracy	|epoch	|target	|
+| :------| ------: | ------: |------: |
+| CR | 0.7779| 73| 80.5000|  |
+| MR | 0.6923| 82| 75.7000|  |
+| TREC | 0.8580| 195| 89.0000|  |
+| MPQA | 0.8685| 35| 83.7000| Y |
+| SST | 0.7813| 131| 81.4000|  |
+| SUBJ | 0.8620| 106| 91.4000|  |
+
+使用了Ngram5作为context
+==============================***==============================
+
+|name	|accuracy	|epoch	|target	|
+| :------| ------: | ------: |------: |
+| CR | 0.7872| 134| 80.5000|  |
+| MR | 0.6275| 2| 75.7000|  |
+| TREC | 0.8840| 197| 89.0000|  |
+| MPQA | 0.8621| 162| 83.7000| Y |
+| SST | 0.8269| 196| 81.4000| Y |
+| SUBJ | 0.8995| 108| 91.4000|  |
+
+使用了gram3作为context
+==============================***==============================
+
+|name	|accuracy	|epoch	|target	|
+| :------| ------: | ------: |------: |
+| CR | 0.7939| 59| 80.5000|  |
+| MR | 0.6261| 5| 75.7000|  |
+| TREC | 0.8680| 169| 89.0000|  |
+| MPQA | 0.8568| 41| 83.7000| Y |
+| SST | 0.8159| 188| 81.4000| Y |
+| SUBJ | 0.8950| 44| 91.4000|  |
+
+2018年12月01日
+
+```python
+    def forward(self, x, y):
+        max_len = x.shape[1]
+        x = LongTensor(x)
+        mask = torch.where(x > 0, torch.ones_like(x, dtype = torch.float32), torch.zeros_like(x, dtype = torch.float32))
+        x_embed = self.embedding(x)
+        x_embed = self.dropout(x_embed)
+        # x_embed2 = self.embedding(torch.cat([x[:, :1], x[:, :-1]], -1))
+        # x_embed3 = self.embedding(torch.cat([x[:, 1:], x[:, :1]], -1))
+        # x_embed4 = self.embedding(torch.cat([x[:, -2:], x[:, :-2]], -1))
+        # x_embed5 = self.embedding(torch.cat([x[:, 2:], x[:, :2]], -1))
+
+        x_embed2 = self.embedding(torch.cat([torch.zeros(size = [x.shape[0], 1], dtype = torch.long).cuda(), x[:, :-1]], -1))
+        x_embed3 = self.embedding(torch.cat([x[:, 1:], torch.zeros(size = [x.shape[0], 1], dtype = torch.long).cuda()], -1))
+        x_embed4 = self.embedding(torch.cat([torch.zeros(size = [x.shape[0], 2], dtype = torch.long).cuda(), x[:, :-2]], -1))
+        x_embed5 = self.embedding(torch.cat([x[:, 2:], torch.zeros(size = [x.shape[0], 2], dtype = torch.long).cuda()], -1))
+        #
+        pos1 = self.pos_embedding(LongTensor([0, 1, 2]))
+        pos2 = self.pos_embedding2(LongTensor([3, 0, 1, 2, 4]))
+
+        ngram3 = torch.stack([x_embed2, x_embed, x_embed3], -2).sum(2).squeeze(2)
+        ngram5 = torch.stack([x_embed4, x_embed2, x_embed, x_embed3, x_embed5], -2).sum(2).squeeze(2)
+        # ngram3 = F.softmax(torch.sum(ngram3 * pos1, -1), -2).unsqueeze(-1) * ngram3
+        # ngram5 = F.softmax(torch.sum(ngram5 * pos2, -1), -2).unsqueeze(-1) * ngram5
+
+        # x_embed = torch.cat([ngram3.max(2)[0], ngram5.max(2)[0], x_embed], -1)
+        # x_embed = torch.cat([x_embed, ngram3.sum(2).squeeze(2), ngram5.sum(2).squeeze(2)], -1)
+        ngram3_s = F.sigmoid(torch.cat([ngram3, ngram5, x_embed], -1) @ self.param) * ngram3
+        x_embed = x_embed + ngram3_s * F.tanh(ngram3) + (1-ngram3_s) * F.tanh(ngram5)
+        outputs, (h, c) = self.rnn1(x_embed)
+        # output_maxpooled, _ = torch.max(outputs, 1)
+        output_maxpooled = gather_rnnstate(outputs, mask).squeeze(1)
+        class_prob = self.linear(output_maxpooled)
+        return class_prob, F.dropout(output_maxpooled)
+
+```
+==============================***==============================
+
+|name   |accuracy       |epoch  |target |
+| :------| ------: | ------: |------: |
+| CR | 0.7766| 73| 80.5000|  |
+| MR | 0.7628| 68| 75.7000| Y |
+| TREC | 0.8680| 194| 89.0000|  |
+| MPQA | 0.8600| 24| 83.7000| Y |
+| SST | 0.8110| 196| 81.4000|  |
+| SUBJ | 0.9025| 59| 91.4000|  |
+
+比baseline gru 在 MR TREC MPQA 强 SST相等， 在CR弱
+比baseline lstm 在 MR SST TREC 强，其他都弱
+
+|name   |accuracy       |epoch  |target |
+| :------| ------: | ------: |------: |
+| CR | 0.7859| 85| 80.5000|  |
+| MR | 0.7581| 108| 75.7000| Y |
+| TREC | 0.8760| 126| 89.0000|  |
+| MPQA | 0.8484| 181| 83.7000| Y |
+| SST | 0.8165| 91| 81.4000| Y |
+| SUBJ | 0.9015| 188| 91.4000|  |

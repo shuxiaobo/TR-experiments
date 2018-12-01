@@ -29,7 +29,7 @@ class BaseLineRNN(BaseModel):
         self.stride = stride
 
         self.embedding = nn.Embedding(vocabulary_size, embedding_size * 3)
-        self.rnn = nn.LSTM(embedding_size * 3, hidden_size, num_layers = rnn_layers, bias = False, bidirectional = bidirection, batch_first = True)
+        self.rnn = nn.GRU(embedding_size * 3, hidden_size, num_layers = rnn_layers, bias = False, bidirectional = bidirection, batch_first = True)
         # self.rnn = nn.RNN(embedding_size, hidden_size, num_layers = rnn_layers, bias = False, bidirectional = bidirection, batch_first = True)
         # self.rnn = BaseRNN(args, input_size = embedding_size, hidden_size = hidden_size, n_layer = rnn_layers, bidirectional = bidirection, batch_first = True,
         #                    nonlinearity = args.activation)
@@ -47,8 +47,8 @@ class BaseLineRNN(BaseModel):
         # outputs, (h, c) = self.rnn(x_embed)
         # batch_size = x.shape[0]
         # h = h.transpose(0, 1).contiguous().view(batch_size, -1)
-        # outputs = gather_rnnstate(data = outputs, mask = mask)
-        outputs, _ = torch.max(outputs, 1)
+        outputs = gather_rnnstate(data = outputs, mask = mask)
+        # outputs, _ = torch.max(outputs, 1)
         class_prob = self.linear(outputs)
         return class_prob, outputs
 

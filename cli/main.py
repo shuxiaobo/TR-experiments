@@ -8,6 +8,8 @@ import sys
 import os
 import copy
 from pprint import pprint
+import random
+import numpy as np
 from torch.multiprocessing import Process, Pool, Process, set_start_method
 
 sys.path.append(os.getcwd() + '/..')
@@ -43,7 +45,7 @@ def main():
 
     group1.add_argument("--save_val", default = True, type = bool, help = "whether save the validation prediction result.")
 
-
+    group1.add_argument('--random_seed', default = 1111, type = int)
 
     group1.add_argument("--gpu", default = 0, type = int, help = "GPU id be used.")
 
@@ -104,7 +106,7 @@ def main():
 
     group4.add_argument('--bidirectional', default = True, type = bool, help = 'Use the bi-directional rnn.')
 
-    group4.add_argument('--task', default = 2, type = int, help = 'task 1 for nli, 0 for classify')
+    group4.add_argument('--task', default = 1, type = int, help = 'task 1 for nli, 0 for classify')
 
     group4.add_argument('--num_layers', default = 1, type = int, help = 'number of layers')
 
@@ -113,16 +115,20 @@ def main():
     group4.add_argument('--dataset', default = 'trec', type = str, help = 'activation function for RNN ')
 
     group4.add_argument('--target', default = 0.0, type = float, help = '')
+
     args = parser.parse_args()
     torch.cuda.set_device(args.gpu)
-
+    random.seed(args.random_seed)
+    torch.manual_seed(args.random_seed)
+    torch.cuda.manual_seed(args.random_seed)
+    np.random.seed(args.random_seed)
     pprint(vars(args), indent = 4)
     if args.mode == 1:
         if args.task == 0:
             i, d, e = train(args)
             print(' %s : acc %.4f, epoch : %d, target %.4f  \n' % (d, i, e, args.target))
         elif args.task == 1:
-            train_nli(args)
+            print(' %s : acc %.4f, epoch : %d, target %.4f  \n' % (train_nli(args)))
         else:
             import datetime
             print(datetime.datetime.now())
@@ -133,11 +139,11 @@ def main():
             for d, t in all_dataset:
                 args.dataset = d
                 acces.append(train(args) + [t])
-            print('===' * 10 + '***' + '===' * 10)
+            print('===' * 10 + '***' + '===' * 10 +'\n')
             print('|name\t|accuracy\t|epoch\t|target\t|\n| :------| ------: | ------: |------: |')
             for i, d, e, t in acces:
                 info = '' if i * 100 < t else 'Y'
-                print('| %s | %.4f| %d| %.4f| %s |\n' % (d, i, e, t, info))
+                print('| %s | %.4f| %d| %.4f| %s |' % (d, i, e, t, info))
             print(datetime.datetime.now())
 
     elif args.mode == 0:

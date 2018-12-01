@@ -12,6 +12,7 @@ from model.model2 import NGramRNN2
 from model.model3 import NGramRNN3
 from model.model4 import NGramConcatRNN
 from model.baseline import BaseLineRNN
+from model.model5 import NGramSumRNN
 from utils.util import accuracy
 from datasets.binary import *
 from datasets.snli import SNLI
@@ -67,7 +68,7 @@ def train(args):
         best_epoch = best_epoch if best_acc > testacc else i
         best_acc = best_acc if best_acc > testacc else testacc
         logging.error('Test result acc1: %.4f | best acc: %.4f | best epoch : %d' % (testacc, best_acc, best_epoch))
-
+    return [best_acc, train_dataloader.dataset.__class__.__name__, best_epoch]
 
 def evaluation(args, model, model2, data_loader):
     model.eval()
@@ -119,7 +120,7 @@ def init_from_scrach(args):
     # model = FusionModel(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
     #                     num_layers = args.num_layers,
     #                     bidirection = args.bidirectional, num_class = train_dataset.num_class)
-    model = NGramConcatRNN(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
+    model = NGramSumRNN(args = args, hidden_size = args.hidden_size, embedding_size = args.embedding_dim, vocabulary_size = len(train_dataset.word2id),
                            rnn_layers = args.num_layers,
                            bidirection = args.bidirectional, kernel_size = args.kernel_size, stride = args.stride, num_class = train_dataset.num_class)
     model.cuda()
